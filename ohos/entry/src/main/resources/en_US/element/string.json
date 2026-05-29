@@ -1,0 +1,16 @@
+{
+  "string": [
+    {
+      "name": "module_desc",
+      "value": "Zhiji Oil Consumption Tracker"
+    },
+    {
+      "name": "EntryAbility_desc",
+      "value": "Track and manage vehicle fuel consumption data"
+    },
+    {
+      "name": "EntryAbility_label",
+      "value": "Zhiji Oil"
+    }
+  ]
+}

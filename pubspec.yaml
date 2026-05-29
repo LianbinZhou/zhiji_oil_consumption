@@ -55,6 +55,17 @@ dependencies:
   # excel: Excel文件读写支持
   excel: ^4.0.2
 
+# HarmonyOS适配依赖覆盖（同时兼容Android）
+dependency_overrides:
+  shared_preferences:
+    git:
+      url: "https://atomgit.com/openharmony-tpc/flutter_packages.git"
+      path: "packages/shared_preferences/shared_preferences"
+  path_provider:
+    git:
+      url: "https://atomgit.com/openharmony-tpc/flutter_packages.git"
+      path: "packages/path_provider/path_provider"
+
 # 开发依赖(仅在开发时使用)
 dev_dependencies:
   flutter_test:

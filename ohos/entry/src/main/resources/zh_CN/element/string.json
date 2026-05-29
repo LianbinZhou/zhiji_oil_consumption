@@ -1,0 +1,16 @@
+{
+  "string": [
+    {
+      "name": "module_desc",
+      "value": "智记油耗 - 车辆油耗管理"
+    },
+    {
+      "name": "EntryAbility_desc",
+      "value": "记录和管理车辆燃油消耗数据"
+    },
+    {
+      "name": "EntryAbility_label",
+      "value": "智记油耗"
+    }
+  ]
+}
