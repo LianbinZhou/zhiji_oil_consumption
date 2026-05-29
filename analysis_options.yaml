@@ -1,0 +1,17 @@
+# Flutter代码分析配置
+# 这个文件定义了代码检查规则,帮助保持代码质量
+
+include: package:flutter_lints/flutter.yaml
+
+# 自定义lint规则
+linter:
+  rules:
+    # 推荐使用const构造函数(性能优化)
+    prefer_const_constructors: true
+    prefer_const_literals_to_create_immutables: true
+    
+    # 避免使用print语句(生产环境应使用日志框架)
+    avoid_print: true
+    
+    # 必须使用分号
+    always_declare_return_types: true

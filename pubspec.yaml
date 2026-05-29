@@ -1,0 +1,92 @@
+# 智记油耗 - Flutter项目配置文件
+# 这个文件定义了项目的元数据、依赖项和其他配置
+
+name: zhiji_oil_consumption
+description: 一款本地记录车辆油耗的APP,帮助用户管理燃油消耗数据
+publish_to: 'none' # 不发布到pub.dev
+
+# 版本号: 主版本.次版本.修订号+构建号
+version: 1.0.0+1
+
+# Flutter SDK版本约束
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+# 项目依赖
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Material Design图标库
+  cupertino_icons: ^1.0.6
+
+  # ==================== 状态管理 ====================
+  # Riverpod: 现代化的Flutter状态管理解决方案
+  flutter_riverpod: ^2.5.1
+  riverpod_annotation: ^2.3.5
+
+  # ==================== 本地数据库 ====================
+  # Drift: 基于SQLite的类型安全数据库
+  drift: ^2.20.0
+  # SQLite的Flutter支持库
+  sqlite3_flutter_libs: ^0.5.24
+  # 获取应用存储路径
+  path_provider: ^2.1.4
+  # 路径处理工具
+  path: ^1.9.0
+
+  # ==================== 路由管理 ====================
+  # go_router: 声明式路由管理
+  go_router: ^14.2.0
+
+  # ==================== 图表绘制 ====================
+  # fl_chart: 强大的Flutter图表库
+  fl_chart: ^0.68.0
+
+  # ==================== 工具库 ====================
+  # intl: 国际化支持,用于日期格式化
+  intl: ^0.19.0
+  # uuid: 生成唯一标识符
+  uuid: ^4.4.0
+  # shared_preferences: 本地存储用户偏好设置
+  shared_preferences: ^2.2.2
+  # file_picker: 文件选择对话框
+  file_picker: ^6.1.1
+  # excel: Excel文件读写支持
+  excel: ^4.0.2
+
+# 开发依赖(仅在开发时使用)
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  # Flutter代码规范检查
+  flutter_lints: ^4.0.0
+
+  # ==================== 代码生成工具 ====================
+  # Drift代码生成器
+  drift_dev: ^2.18.0
+  # Dart代码生成框架
+  build_runner: ^2.4.11
+
+  # Riverpod代码生成器
+  riverpod_generator: ^2.4.0
+  # 自定义代码检查
+  custom_lint: ^0.6.4
+  # Riverpod代码检查
+  riverpod_lint: ^2.3.10
+
+# Flutter特定配置
+flutter:
+  # 启用Material Design 3
+  uses-material-design: true
+
+  # 资源文件配置(后续添加图标、字体等)
+  # assets:
+  #   - images/
+
+  # 字体配置(后续可自定义字体)
+  # fonts:
+  #   - family: CustomFont
+  #     fonts:
+  #       - asset: fonts/CustomFont-Regular.ttf

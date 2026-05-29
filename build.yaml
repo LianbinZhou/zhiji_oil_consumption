@@ -1,0 +1,19 @@
+# Drift代码生成配置
+# 这个文件告诉build_runner如何生成Drift的代码
+
+targets:
+  $default:
+    builders:
+      drift_dev:
+        options:
+          # 生成数据类(Companion类)
+          data_class_to_companions: true
+          # 自动生成insert/update方法
+          apply_converters_on_variables: true
+          # 使用SQLite的严格模式
+          generate_connect_constructor: true
+          # 为每个表生成SQL语句
+          sql:
+            dialect: sqlite
+            options:
+              version: '3.38'
