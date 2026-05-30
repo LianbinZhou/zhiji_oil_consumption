@@ -149,6 +149,9 @@ flutter run -d android
 # Chrome 浏览器 (Web 模式)
 flutter run -d chrome
 
+# Windows 桌面应用
+flutter run -d windows
+
 # HarmonyOS 设备 (需要 Flutter-OH SDK)
 C:/src/flutter-ohos-3.27/bin/flutter run -d ohos
 ```
