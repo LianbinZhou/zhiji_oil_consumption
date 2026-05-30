@@ -2,8 +2,11 @@
 # 这个文件定义了项目的元数据、依赖项和其他配置
 
 name: zhiji_oil_consumption
-description: 一款本地记录车辆油耗的APP,帮助用户管理燃油消耗数据
-publish_to: 'none' # 不发布到pub.dev
+description: 一款本地化车辆油耗管理 Flutter 应用，支持 Android 与 HarmonyOS Next，提供加油记录、油耗统计、数据看板、Excel 导出等功能。
+publish_to: 'none'
+homepage: https://github.com/LianbinZhou/zhiji_oil_consumption
+repository: https://github.com/LianbinZhou/zhiji_oil_consumption
+license: Apache-2.0
 
 # 版本号: 主版本.次版本.修订号+构建号
 version: 1.0.0+1
