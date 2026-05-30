@@ -116,6 +116,17 @@ zhiji_oil_consumption/
    ```bash
    C:/src/flutter-ohos-3.27/bin/flutter config --ohos-sdk="C:/Program Files/Huawei/DevEco Studio/sdk"
    ```
+   ## 📦 下载安装包
+
+[![Download from GitHub Releases](https://img.shields.io/badge/下载-APK%20%26%20HAP-blue?logo=github)](https://github.com/LianbinZhou/zhiji_oil_consumption/releases)
+
+点击上方徽章或 [此链接](https://github.com/LianbinZhou/zhiji_oil_consumption/releases) 进入 Releases 页面，即可下载以下文件：
+
+| 平台 | 文件 |
+|------|------|
+| Android | `app-release.apk` |
+| HarmonyOS | `entry-default-unsigned.hap` |
+> ⚠️ 鸿蒙 HAP 为未签名调试版，安装时需使用 `hdc install -d` 命令。
 
 ---
 
