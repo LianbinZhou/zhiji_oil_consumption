@@ -222,7 +222,7 @@ class _VehicleDialogState extends ConsumerState<VehicleDialog> {
               const SizedBox(height: 16),
 
               DropdownButtonFormField<String>(
-                initialValue: _selectedVehicleType,
+                value: _selectedVehicleType,
                 decoration: const InputDecoration(
                   labelText: '车辆类型',
                   hintText: '选择车辆类型(可选)',

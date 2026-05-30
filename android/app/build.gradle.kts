@@ -5,7 +5,7 @@ plugins {
 
 android {
     namespace = "com.zhiji.oilconsumption"
-    compileSdk = 34
+    compileSdk = 36
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
@@ -15,7 +15,7 @@ android {
 
     defaultConfig {
         applicationId = "com.zhiji.oilconsumption"
-        minSdk = 21
+        minSdk = flutter.minSdkVersion
         targetSdk = 34
         versionCode = 1
         versionName = "1.0.0"

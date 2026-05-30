@@ -17,6 +17,8 @@ Thumbs.db
 
 # 日志文件
 *.log
+build_output*.txt
+run_flutter.cmd
 
 # 环境变量文件
 .env

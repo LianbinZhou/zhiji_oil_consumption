@@ -51,7 +51,7 @@ dependencies:
   # shared_preferences: 本地存储用户偏好设置
   shared_preferences: ^2.2.2
   # file_picker: 文件选择对话框
-  file_picker: ^6.1.1
+  file_picker: ^8.0.0
   # excel: Excel文件读写支持
   excel: ^4.0.2
 
