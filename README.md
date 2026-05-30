@@ -187,6 +187,18 @@ C:\src\flutter-ohos-3.27\bin\flutter.bat build hap --release
 
 ---
 
+## 测试状态
+
+| 平台 | 构建 | 功能测试 |
+|------|------|----------|
+| Windows | ✅ 通过 | ✅ 已测试（核心流程） |
+| Android | ✅ 通过 | ⚠️ 仅构建，未运行测试 |
+| HarmonyOS | ✅ 通过 | ⚠️ 仅构建，未运行测试 |
+
+> 欢迎社区帮助在各平台进行功能验证，并通过 [Issue](https://github.com/LianbinZhou/zhiji_oil_consumption/issues) 反馈问题。
+
+---
+
 ## 参与贡献
 
 我们欢迎任何形式的贡献！无论是报告 Bug、提出新功能建议、改进文档还是提交代码。
