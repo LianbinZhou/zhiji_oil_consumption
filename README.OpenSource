@@ -1,0 +1,92 @@
+[
+    {
+        "Name": "flutter",
+        "License": "BSD-3-Clause",
+        "License File": "https://github.com/flutter/flutter/blob/master/LICENSE",
+        "Version Number": "3.44.0",
+        "Owner": "zhou0615@gmail.com",
+        "Upstream URL": "https://github.com/flutter/flutter",
+        "Description": "Flutter is Google's UI toolkit for building beautiful, natively compiled applications from a single codebase."
+    },
+    {
+        "Name": "drift",
+        "License": "MIT",
+        "License File": "https://github.com/simolus3/drift/blob/develop/LICENSE",
+        "Version Number": "2.21.0",
+        "Owner": "zhou0615@gmail.com",
+        "Upstream URL": "https://github.com/simolus3/drift",
+        "Description": "Drift is a reactive persistence library for Flutter and Dart, built on top of SQLite."
+    },
+    {
+        "Name": "flutter_riverpod",
+        "License": "MIT",
+        "License File": "https://github.com/rrousselGit/riverpod/blob/master/LICENSE",
+        "Version Number": "2.6.1",
+        "Owner": "zhou0615@gmail.com",
+        "Upstream URL": "https://github.com/rrousselGit/riverpod",
+        "Description": "A reactive caching and data-binding framework for Dart/Flutter."
+    },
+    {
+        "Name": "go_router",
+        "License": "BSD-3-Clause",
+        "License File": "https://github.com/flutter/packages/blob/main/packages/go_router/LICENSE",
+        "Version Number": "14.8.1",
+        "Owner": "zhou0615@gmail.com",
+        "Upstream URL": "https://github.com/flutter/packages/tree/main/packages/go_router",
+        "Description": "A declarative routing package for Flutter that uses the Router API."
+    },
+    {
+        "Name": "fl_chart",
+        "License": "MIT",
+        "License File": "https://github.com/imaNNeo/fl_chart/blob/master/LICENSE",
+        "Version Number": "0.68.0",
+        "Owner": "zhou0615@gmail.com",
+        "Upstream URL": "https://github.com/imaNNeo/fl_chart",
+        "Description": "A highly customizable Flutter chart library that supports Line, Bar, Pie, Scatter and Radar charts."
+    },
+    {
+        "Name": "shared_preferences",
+        "License": "BSD-3-Clause",
+        "License File": "https://github.com/flutter/packages/blob/main/packages/shared_preferences/shared_preferences/LICENSE",
+        "Version Number": "2.2.0",
+        "Owner": "zhou0615@gmail.com",
+        "Upstream URL": "https://github.com/flutter/packages/tree/main/packages/shared_preferences/shared_preferences",
+        "Description": "Flutter plugin for reading and writing simple key-value pairs. OHOS adaptation from OpenHarmony TPC."
+    },
+    {
+        "Name": "path_provider",
+        "License": "BSD-3-Clause",
+        "License File": "https://github.com/flutter/packages/blob/main/packages/path_provider/path_provider/LICENSE",
+        "Version Number": "2.1.0",
+        "Owner": "zhou0615@gmail.com",
+        "Upstream URL": "https://github.com/flutter/packages/tree/main/packages/path_provider/path_provider",
+        "Description": "Flutter plugin for finding commonly used locations on the filesystem. OHOS adaptation from OpenHarmony TPC."
+    },
+    {
+        "Name": "file_picker",
+        "License": "MIT",
+        "License File": "https://github.com/miguelpruivo/flutter_file_picker/blob/master/LICENSE",
+        "Version Number": "8.0.0",
+        "Owner": "zhou0615@gmail.com",
+        "Upstream URL": "https://github.com/miguelpruivo/flutter_file_picker",
+        "Description": "A package that allows you to use the native file explorer to pick single or multiple files."
+    },
+    {
+        "Name": "excel",
+        "License": "MIT",
+        "License File": "https://github.com/justkawal/excel/blob/master/LICENSE",
+        "Version Number": "4.0.2",
+        "Owner": "zhou0615@gmail.com",
+        "Upstream URL": "https://github.com/justkawal/excel",
+        "Description": "A flutter and dart library for reading, creating, editing and updating Excel sheets."
+    },
+    {
+        "Name": "sqlite3_flutter_libs",
+        "License": "MIT",
+        "License File": "https://github.com/simolus3/sqlite3.dart/blob/master/LICENSE",
+        "Version Number": "0.5.42",
+        "Owner": "zhou0615@gmail.com",
+        "Upstream URL": "https://github.com/simolus3/sqlite3.dart",
+        "Description": "Provides platform-specific SQLite dynamic libraries for Flutter apps."
+    }
+]
