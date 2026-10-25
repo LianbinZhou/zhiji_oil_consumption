@@ -7,4 +7,4 @@
 /// **发版检查清单的第 1 条就是把它和 pubspec 对齐**。
 ///
 /// 为什么带 build 号：用户报问题时，"1.0.0" 无法区分到底装的是 +2 还是 +3。
-const String kAppVersionLabel = 'v1.0.1 (build 4)';
+const String kAppVersionLabel = 'v1.0.2 (build 5)';

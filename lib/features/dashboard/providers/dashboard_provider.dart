@@ -77,7 +77,14 @@ model.Vehicle _convertVehicle(Vehicle data) {
   );
 }
 
-final dashboardSummaryProvider = FutureProvider<DashboardSummary?>((ref) async {
+/// 首页当前选中的年月（默认当月）
+final selectedMonthProvider = StateProvider<DateTime>((ref) {
+  final now = DateTime.now();
+  return DateTime(now.year, now.month);
+});
+
+final dashboardSummaryProvider =
+    FutureProvider.family<DashboardSummary?, DateTime>((ref, month) async {
   try {
     final database = ref.watch(databaseProvider);
     final vehiclesNative = await database.getAllVehicles();
@@ -86,8 +93,8 @@ final dashboardSummaryProvider = FutureProvider<DashboardSummary?>((ref) async {
       return null;
     }
 
-    final now = DateTime.now();
-    final currentYearMonth = '${now.year}-${now.month.toString().padLeft(2, '0')}';
+    final currentYearMonth =
+        '${month.year}-${month.month.toString().padLeft(2, '0')}';
 
     double monthlyTotalCost = 0;
     double monthlyTotalDistance = 0;

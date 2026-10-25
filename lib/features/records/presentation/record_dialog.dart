@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../providers/records_provider.dart';
+import '../../../shared/utils/fuel_type_label.dart';
 import '../../vehicles/providers/vehicles_provider.dart';
 import '../../../data/models/fuel_record.dart' as model;
 import '../../../shared/widgets/labeled_field.dart';
@@ -80,7 +81,8 @@ class _RecordDialogState extends ConsumerState<RecordDialog> {
       _odometerController.text = widget.record!.odometer.toString();
       _isFullTank = widget.record!.isFullTank;
       _isLightOn = widget.record!.isLightOn;
-      _selectedFuelType = widget.record!.fuelType;
+      // 导入的数据里柴油是 "0#"，下拉选项是 "0#柴油"，这里归一化一下
+      _selectedFuelType = normalizeFuelType(widget.record!.fuelType);
       _stationNameController.text = widget.record!.stationName ?? '';
       _notesController.text = widget.record!.notes ?? '';
     } else {
@@ -93,7 +95,7 @@ class _RecordDialogState extends ConsumerState<RecordDialog> {
 
     if (latestRecord != null && mounted) {
       _pricePerLiterController.text = latestRecord.pricePerLiter.toString();
-      _selectedFuelType = latestRecord.fuelType;
+      _selectedFuelType = normalizeFuelType(latestRecord.fuelType);
       setState(() {
         _odometerController.text = '';
       });

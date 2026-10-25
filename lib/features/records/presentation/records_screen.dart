@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../providers/records_provider.dart';
+import '../../../shared/utils/fuel_type_label.dart';
 import '../../../data/database/tables.dart';
 import '../../expenses/presentation/expense_list_screen.dart';
 import '../../settings/providers/settings_provider.dart';
@@ -427,8 +428,9 @@ class RecordsScreen extends ConsumerWidget {
                               _buildTag(context, '满', Theme.of(context).colorScheme.primary),
                             if (record.isLightOn)
                               _buildTag(context, '灯', Colors.orange),
-                            if (record.fuelType != null)
-                              _buildTag(context, record.fuelType!, Theme.of(context).colorScheme.secondary),
+                            // "0#" 这类原始标号统一显示成 "0#柴油"
+                            if (fuelTypeLabel(record.fuelType) != null)
+                              _buildTag(context, fuelTypeLabel(record.fuelType)!, Theme.of(context).colorScheme.secondary),
                           ],
                         ),
                         const SizedBox(height: 4),

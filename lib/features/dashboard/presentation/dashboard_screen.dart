@@ -13,7 +13,9 @@ class DashboardScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final summaryAsync = ref.watch(dashboardSummaryProvider);
+    final selectedMonth = ref.watch(selectedMonthProvider);
+    final summaryAsync =
+        ref.watch(dashboardSummaryProvider(selectedMonth));
     final overviewsAsync = ref.watch(vehicleOverviewsProvider);
     final settings = ref.watch(settingsProvider).settings;
 
@@ -64,7 +66,7 @@ class DashboardScreen extends ConsumerWidget {
           }
           return RefreshIndicator(
             onRefresh: () async {
-              ref.invalidate(dashboardSummaryProvider);
+              ref.invalidate(dashboardSummaryProvider(selectedMonth));
               ref.invalidate(vehicleOverviewsProvider);
             },
             child: SingleChildScrollView(
@@ -74,7 +76,8 @@ class DashboardScreen extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // 本月概览卡片
-                  _buildMonthlyOverviewCard(context, summary, settings),
+                  _buildMonthlyOverviewCard(
+                      context, ref, summary, settings, selectedMonth),
                   const SizedBox(height: 20),
 
                   // 我的车辆标题
@@ -330,8 +333,74 @@ class DashboardScreen extends ConsumerWidget {
   }
 
   // 本月概览卡片 - 渐变背景
-  Widget _buildMonthlyOverviewCard(
-      BuildContext context, DashboardSummary summary, AppSettings settings) {
+
+  /// 选择年月：选完后首页橙色卡片会显示所选月份的数据
+  Future<void> _pickMonth(BuildContext context, WidgetRef ref) async {
+    final current = ref.read(selectedMonthProvider);
+    final now = DateTime.now();
+
+    // 年份范围：从今年往前 15 年（覆盖 11 年的记录）
+    final years = [for (var y = now.year; y >= now.year - 15; y--) y];
+
+    var pickedYear = current.year;
+    var pickedMonth = current.month;
+
+    final result = await showDialog<DateTime>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSt) => AlertDialog(
+          title: const Text('选择月份'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              DropdownButtonFormField<int>(
+                initialValue: pickedYear,
+                decoration: const InputDecoration(
+                  labelText: '年份',
+                  border: OutlineInputBorder(),
+                ),
+                items: years
+                    .map((y) => DropdownMenuItem(value: y, child: Text('$y年')))
+                    .toList(),
+                onChanged: (v) => setSt(() => pickedYear = v ?? pickedYear),
+              ),
+              const SizedBox(height: 16),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (var m = 1; m <= 12; m++)
+                    ChoiceChip(
+                      label: Text('$m月'),
+                      selected: pickedMonth == m,
+                      onSelected: (_) => setSt(() => pickedMonth = m),
+                    ),
+                ],
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('取消'),
+            ),
+            FilledButton(
+              onPressed: () =>
+                  Navigator.of(ctx).pop(DateTime(pickedYear, pickedMonth)),
+              child: const Text('确定'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (result != null) {
+      ref.read(selectedMonthProvider.notifier).state = result;
+    }
+  }
+
+  Widget _buildMonthlyOverviewCard(BuildContext context, WidgetRef ref,
+      DashboardSummary summary, AppSettings settings, DateTime selectedMonth) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
@@ -356,16 +425,29 @@ class DashboardScreen extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 标题行
-          Row(
-            children: [
-              const Icon(Icons.calendar_today, color: Colors.white70, size: 16),
-              const SizedBox(width: 8),
-              Text(
-                '${DateTime.now().year}年${DateTime.now().month}月',
-                style: const TextStyle(color: Colors.white70, fontSize: 14),
+          // 标题行：点击可以切换年月，下面的统计会跟着变
+          InkWell(
+            onTap: () => _pickMonth(context, ref),
+            borderRadius: BorderRadius.circular(8),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 2),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.calendar_today,
+                      color: Colors.white70, size: 16),
+                  const SizedBox(width: 8),
+                  Text(
+                    '${selectedMonth.year}年${selectedMonth.month}月',
+                    style: const TextStyle(
+                        color: Colors.white70, fontSize: 14),
+                  ),
+                  const SizedBox(width: 4),
+                  const Icon(Icons.arrow_drop_down,
+                      color: Colors.white70, size: 18),
+                ],
               ),
-            ],
+            ),
           ),
           const SizedBox(height: 16),
 
