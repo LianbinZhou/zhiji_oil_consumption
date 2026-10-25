@@ -41,6 +41,11 @@ class DashboardSummary {
   });
 }
 
+String _ymOf(int ms) {
+  final d = DateTime.fromMillisecondsSinceEpoch(ms);
+  return '${d.year}-${d.month.toString().padLeft(2, '0')}';
+}
+
 model_record.FuelRecordModel _convertFuelRecord(EnergyRecord data) {
   return model_record.FuelRecordModel(
     id: data.id,
@@ -136,16 +141,19 @@ final dashboardSummaryProvider =
         }
       }
 
-      // 与统计页同一个函数：区间求和 + 加权平均
-      final fuelOnly = recordsNative
-          .where((r) => r.energyType == EnergyTypes.gasoline)
+      // 口径统一：油耗也只算「所选月份」的，不能拿全时段平均冒充当月
+      // （和统计页同一个函数：区间求和 + 加权）
+      final monthFuel = recordsNative
+          .where((r) =>
+              r.energyType == EnergyTypes.gasoline &&
+              _ymOf(r.date) == currentYearMonth)
           .toList()
         ..sort((a, b) {
           final c = a.date.compareTo(b.date);
           return c != 0 ? c : a.odometer.compareTo(b.odometer);
         });
-      final detail = consumptionDetail(fuelOnly, useLightAnchor: false) ??
-          consumptionDetail(fuelOnly, useLightAnchor: true);
+      final detail = consumptionDetail(monthFuel, useLightAnchor: false) ??
+          consumptionDetail(monthFuel, useLightAnchor: true);
       if (detail != null) {
         totalFuelQuantityForConsumption += detail.quantity;
         totalDistanceForConsumption += detail.distance;

@@ -349,15 +349,24 @@ class DashboardScreen extends ConsumerWidget {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setSt) => AlertDialog(
-          title: const Text('选择月份'),
+          title: const Text('选择月份', style: TextStyle(fontSize: 18)),
           content: Column(
             mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              Text('年份',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Theme.of(ctx).colorScheme.onSurfaceVariant,
+                  )),
+              const SizedBox(height: 6),
               DropdownButtonFormField<int>(
                 initialValue: pickedYear,
+                isDense: true,
                 decoration: const InputDecoration(
-                  labelText: '年份',
                   border: OutlineInputBorder(),
+                  contentPadding:
+                      EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                 ),
                 items: years
                     .map((y) => DropdownMenuItem(value: y, child: Text('$y年')))
@@ -475,13 +484,37 @@ class DashboardScreen extends ConsumerWidget {
               _buildOverviewDivider(),
               _buildOverviewStat(
                 '里程',
-                '${UnitConverter.distance(summary.monthlyTotalDistance, settings.distanceUnit).toStringAsFixed(0)}${UnitConverter.distanceSymbol(settings.distanceUnit)}'),
+                summary.monthlyTotalDistance > 0
+                    ? '${UnitConverter.distance(summary.monthlyTotalDistance, settings.distanceUnit).toStringAsFixed(0)}${UnitConverter.distanceSymbol(settings.distanceUnit)}'
+                    : '—'),
               _buildOverviewDivider(),
               _buildOverviewStat(
                 '油耗',
                 summary.averageFuelConsumption != null
                     ? '${UnitConverter.consumption(summary.averageFuelConsumption!, settings.distanceUnit).toStringAsFixed(1)}${UnitConverter.consumptionLabel('gasoline', settings.distanceUnit)}'
-                    : '--',
+                    : '—',
+              ),
+            ],
+          ),
+
+          // 口径说明：不写清楚的话，用户看到 0 或 — 会觉得莫名其妙
+          const SizedBox(height: 10),
+          const Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(Icons.info_outline, size: 12, color: Colors.white54),
+              SizedBox(width: 4),
+              Expanded(
+                child: Text(
+                  '上面三项只统计所选月份。里程按当月首末表显差算，'
+                  '油耗按当月「加满→加满」的油量÷里程算；'
+                  '当月记录不足 2 条时算不出来，显示 —',
+                  style: TextStyle(
+                    color: Colors.white54,
+                    fontSize: 10.5,
+                    height: 1.4,
+                  ),
+                ),
               ),
             ],
           ),
