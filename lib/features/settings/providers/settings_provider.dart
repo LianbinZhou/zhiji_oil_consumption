@@ -149,7 +149,10 @@ class SettingsNotifier extends AutoDisposeNotifier<SettingsState> {
     
     // 读取货币类型
     final currencyIndex = prefs.getInt(_currencyKey) ?? 0;
-    final currency = AppCurrency.values[currencyIndex];
+    // 和另外三个枚举一样必须 clamp：导入带越界索引的备份后，
+    // 每次冷启动都会在 values[99] 抛 RangeError，设置页永久停在默认值
+    final currency =
+        AppCurrency.values[currencyIndex.clamp(0, AppCurrency.values.length - 1)];
     
     // 读取主题模式
     final themeModeIndex = prefs.getInt(_themeModeKey) ?? 2; // 默认跟随系统

@@ -111,39 +111,6 @@ class VehiclesNotifier extends AutoDisposeNotifier<List<model.Vehicle>> {
   /// [licensePlate] 新的车牌号码
   /// [color] 新的颜色
   /// [notes] 新的备注
-  Future<void> updateVehicle({
-    required int id,
-    required String brand,
-    required String modelName,
-    String? licensePlate,
-    String? color,
-    String? notes,
-    String? vehicleType,
-  }) async {
-    final database = ref.read(databaseProvider);
-    
-    final existingVehicle = await database.getVehicleById(id);
-    if (existingVehicle == null) {
-      throw Exception('车辆不存在');
-    }
-    
-    final now = DateTime.now();
-    final vehicle = VehiclesCompanion(
-      id: drift.Value(id),
-      brand: drift.Value(brand),
-      model: drift.Value(modelName),
-      licensePlate: drift.Value(licensePlate),
-      color: drift.Value(color),
-      notes: drift.Value(notes),
-      vehicleType: drift.Value(vehicleType),
-      isDefault: drift.Value(existingVehicle.isDefault),
-      createdAt: drift.Value(existingVehicle.createdAt),
-      updatedAt: drift.Value(now.millisecondsSinceEpoch),
-    );
-    
-    await database.updateVehicle(vehicle);
-  }
-
   /// 设为默认车辆
   /// 
   /// 将指定车辆设为默认,同时取消其他车辆的默认状态

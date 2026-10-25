@@ -660,10 +660,23 @@ class ExportNotifier extends AutoDisposeNotifier<void> {
     return (t == EnergyTypes.electric) ? EnergyTypes.electric : EnergyTypes.gasoline;
   }
 
+  /// 数值校验：只接受有限的、在合理范围内的数
+  ///
+  /// 必须挡 NaN / Infinity：`double.tryParse('NaN')` 是非 null，
+  /// 一旦落库，统计页的 value.toInt() 会抛 UnsupportedError（非有限数不能转 int），
+  /// 导出 JSON 时 jsonEncode 也会抛 JsonUnsupportedObjectError。
   double _toDouble(dynamic v) {
-    if (v is num) return v.toDouble();
-    if (v is String) return double.tryParse(v) ?? 0;
-    return 0;
+    double d;
+    if (v is num) {
+      d = v.toDouble();
+    } else if (v is String) {
+      d = double.tryParse(v) ?? 0;
+    } else {
+      return 0;
+    }
+    if (!d.isFinite) return 0; // NaN / Infinity
+    if (d.abs() > 1e9) return 0; // 荒谬的大数
+    return d;
   }
 
   /// 日期校验：非法就返回 null，由调用方跳过这条记录
