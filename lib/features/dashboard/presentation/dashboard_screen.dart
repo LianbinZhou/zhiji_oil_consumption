@@ -412,12 +412,21 @@ class DashboardScreen extends ConsumerWidget {
     return Expanded(
       child: Column(
         children: [
-          Text(
-            value,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
+          // 固定高度 + 自动缩放：不同长度的数值（0次 / 0km / 10.7L/100km）
+          // 都在同一行里显示，标签才能对齐
+          SizedBox(
+            height: 26,
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                value,
+                maxLines: 1,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             ),
           ),
           const SizedBox(height: 2),
@@ -576,12 +585,19 @@ class DashboardScreen extends ConsumerWidget {
     return Expanded(
       child: Column(
         children: [
-          Text(
-            value,
-            style: Theme.of(context).textTheme.titleSmall?.copyWith(
-              fontWeight: FontWeight.w600,
+          // 同首页：固定高度 + 缩放，避免 "11.0L/100km" 被截断成 "11.0L/100..."
+          SizedBox(
+            height: 22,
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                value,
+                maxLines: 1,
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             ),
-            overflow: TextOverflow.ellipsis,
           ),
           const SizedBox(height: 2),
           Text(

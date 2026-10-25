@@ -31,7 +31,7 @@ for /f "tokens=1,2 delims=+" %%a in ("!VERSION_LINE: =!") do (
 )
 if "!VERSION!"=="" set VERSION=unknown
 if "!BUILD_NO!"=="" set BUILD_NO=0
-set OUT_NAME=zhiji_oil_arm64_v!VERSION!+!BUILD_NO!.apk
+set OUT_NAME=zhiji_oil_arm64_v!VERSION!-!BUILD_NO!.apk
 
 echo ============================================
 echo   Zhiji Energy - Release APK Builder
@@ -58,6 +58,8 @@ echo [4/5] Building release APK (split per abi)
 call flutter build apk --release --split-per-abi
 if errorlevel 1 goto failed
 
+REM File name rule: only lowercase letters, digits, '_', '-', '.' are allowed.
+REM Never use '+' (it is a URL-reserved character meaning space).
 REM Universal APK is dangerous (versionCode 3 < 2003 = downgrade). Remove it.
 if exist "%APK_DIR%\app-release.apk" del /q "%APK_DIR%\app-release.apk"
 

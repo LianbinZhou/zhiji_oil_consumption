@@ -11,6 +11,9 @@ import '../../settings/providers/settings_provider.dart';
 import '../../../shared/utils/unit_converter.dart';
 import '../../vehicles/providers/vehicles_provider.dart';
 
+/// 月度费用分布饼图当前选中的年份（null = 最新一年）
+final selectedPieYearProvider = StateProvider<int?>((ref) => null);
+
 class StatisticsScreen extends ConsumerWidget {
   final int vehicleId;
 
@@ -110,7 +113,7 @@ class StatisticsScreen extends ConsumerWidget {
                           _buildFuelTrendChart(context, statsList),
                           const SizedBox(height: 16),
                           if (pieChartData.isNotEmpty)
-                            _buildCostPieChart(context, pieChartData),
+                            _buildCostPieChart(context, ref, pieChartData),
                         ],
                       );
                     },
@@ -377,6 +380,8 @@ class StatisticsScreen extends ConsumerWidget {
               child: BarChart(
                 BarChartData(
                   alignment: sorted.length > 1 ? BarChartAlignment.spaceAround : BarChartAlignment.center,
+                  // 组间距：不加的话柱子会挨在一起，看着像一整块
+                  groupsSpace: 18,
                   maxY: maxCost * 1.2,
                   barTouchData: BarTouchData(
                     touchTooltipData: BarTouchTooltipData(
@@ -455,14 +460,14 @@ class StatisticsScreen extends ConsumerWidget {
                   barGroups: sorted.asMap().entries.map((entry) {
                     final index = entry.key;
                     final yearly = entry.value;
-                    final ratio = maxCost > 0 ? yearly.totalCost / maxCost : 0.0;
                     return BarChartGroupData(
                       x: index,
                       barRods: [
                         BarChartRodData(
                           toY: yearly.totalCost,
-                          color: _getBarColor(ratio),
-                          width: 28,
+                          // 按年份顺序循环调色，相邻年份保证不同色
+                          color: _getBarColorByIndex(index),
+                          width: 26,
                           borderRadius: const BorderRadius.vertical(top: Radius.circular(6)),
                         ),
                       ],
@@ -477,11 +482,18 @@ class StatisticsScreen extends ConsumerWidget {
     );
   }
 
-  Color _getBarColor(double ratio) {
-    if (ratio > 0.8) return const Color(0xFFEF5350);
-    if (ratio > 0.5) return const Color(0xFFFFA726);
-    if (ratio > 0.3) return const Color(0xFF42A5F5);
-    return const Color(0xFF66BB6A);
+  /// 逐年循环取色：相邻年份必然不同色
+  /// （原来的实现按花费比例分 4 档，连续几年落在同一档就变成一样的颜色）
+  Color _getBarColorByIndex(int index) {
+    const palette = [
+      Color(0xFF42A5F5), // 蓝
+      Color(0xFFFFA726), // 橙
+      Color(0xFF66BB6A), // 绿
+      Color(0xFFEF5350), // 红
+      Color(0xFFAB47BC), // 紫
+      Color(0xFF26C6DA), // 青
+    ];
+    return palette[index % palette.length];
   }
 
   // ==================== 年度汇总表 ====================
@@ -491,21 +503,30 @@ class StatisticsScreen extends ConsumerWidget {
     final sorted = List<YearlyStats>.from(yearlyList)
       ..sort((a, b) => b.year.compareTo(a.year));
 
+    // 年份多了以后表格会很长，做成可折叠（默认收起，副标题显示年份范围）
+    final yearRange = sorted.isEmpty
+        ? ''
+        : (sorted.length == 1
+            ? '${sorted.first.year}年'
+            : '${sorted.last.year}–${sorted.first.year} 年，共 ${sorted.length} 年');
+
     return Card(
       elevation: 1,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+      clipBehavior: Clip.antiAlias,
+      child: Theme(
+        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+        child: ExpansionTile(
+          leading: Icon(Icons.table_chart,
+              color: Theme.of(context).colorScheme.primary),
+          title: Text('年度明细',
+              style: Theme.of(context).textTheme.titleMedium),
+          subtitle: yearRange.isEmpty
+              ? null
+              : Text(yearRange,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant)),
+          childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
           children: [
-            Row(
-              children: [
-                Icon(Icons.table_chart, color: Theme.of(context).colorScheme.primary),
-                const SizedBox(width: 8),
-                Text('年度明细', style: Theme.of(context).textTheme.titleMedium),
-              ],
-            ),
-            const SizedBox(height: 12),
             SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: DataTable(
@@ -746,11 +767,30 @@ class StatisticsScreen extends ConsumerWidget {
   }
 
   // ==================== 月度费用饼图 ====================
-  Widget _buildCostPieChart(BuildContext context, List<PieChartDataItem> pieData) {
+  Widget _buildCostPieChart(
+      BuildContext context, WidgetRef ref, List<PieChartDataItem> pieData) {
     if (pieData.isEmpty) return const SizedBox.shrink();
 
-    if (pieData.length < 2) {
-      final item = pieData.first;
+    // 从 "2026年10月" 里提取年份，供下拉选择
+    final years = <int>{};
+    for (final item in pieData) {
+      final m = RegExp(r'(\d{4})').firstMatch(item.name);
+      if (m != null) years.add(int.parse(m.group(1)!));
+    }
+    if (years.isEmpty) return const SizedBox.shrink();
+    final sortedYears = years.toList()..sort((a, b) => b.compareTo(a));
+    final selected =
+        ref.watch(selectedPieYearProvider) ?? sortedYears.first;
+
+    // 只保留选中那一年的数据
+    final data = pieData.where((item) {
+      final m = RegExp(r'(\d{4})').firstMatch(item.name);
+      return m != null && int.parse(m.group(1)!) == selected;
+    }).toList();
+    if (data.isEmpty) return const SizedBox.shrink();
+
+    if (data.length < 2) {
+      final item = data.first;
       return Card(
         elevation: 1,
         child: Padding(
@@ -783,7 +823,31 @@ class StatisticsScreen extends ConsumerWidget {
               children: [
                 Icon(Icons.pie_chart, color: Theme.of(context).colorScheme.primary),
                 const SizedBox(width: 8),
-                Text('月度费用分布', style: Theme.of(context).textTheme.titleMedium),
+                Expanded(
+                  child: Text('月度费用分布',
+                      style: Theme.of(context).textTheme.titleMedium),
+                ),
+                // 年份选择：可以回看往年的月度分布
+                DropdownButton<int>(
+                  value: selected,
+                  underline: const SizedBox.shrink(),
+                  isDense: true,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Theme.of(context).colorScheme.primary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                  items: sortedYears
+                      .map((y) => DropdownMenuItem(
+                            value: y,
+                            child: Text('$y年'),
+                          ))
+                      .toList(),
+                  onChanged: (v) {
+                    if (v != null) {
+                      ref.read(selectedPieYearProvider.notifier).state = v;
+                    }
+                  },
+                ),
               ],
             ),
             const SizedBox(height: 16),
@@ -791,7 +855,7 @@ class StatisticsScreen extends ConsumerWidget {
               height: 250,
               child: PieChart(
                 PieChartData(
-                  sections: _createPieChartSections(context, pieData),
+                  sections: _createPieChartSections(context, data),
                   sectionsSpace: 2,
                   centerSpaceRadius: 40,
                   startDegreeOffset: 270,
@@ -802,7 +866,7 @@ class StatisticsScreen extends ConsumerWidget {
             Wrap(
               spacing: 16,
               runSpacing: 8,
-              children: pieData.map((item) {
+              children: data.map((item) {
                 return Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -831,13 +895,13 @@ class StatisticsScreen extends ConsumerWidget {
 
   List<PieChartSectionData> _createPieChartSections(
     BuildContext context,
-    List<PieChartDataItem> pieData,
+    List<PieChartDataItem> data,
   ) {
-    if (pieData.isEmpty) return [];
+    if (data.isEmpty) return [];
 
-    final totalValue = pieData.fold<double>(0, (sum, item) => sum + item.value);
+    final totalValue = data.fold<double>(0, (sum, item) => sum + item.value);
 
-    return pieData.asMap().entries.map((entry) {
+    return data.asMap().entries.map((entry) {
       final item = entry.value;
       final percentage = (item.value / totalValue * 100);
 
@@ -884,13 +948,28 @@ class StatisticsScreen extends ConsumerWidget {
     return const Color(0xFFEF5350);
   }
 
+  /// 把 "2026-10" 或 "2026年10月" 都转成 "10月"
+  ///
+  /// 注意：饼图数据的 name 已经是 _formatMonth 处理过的 "2026年10月"，
+  /// 直接按 '-' 拆会拿到长度 1 的数组 -> RangeError（2026-10-25 线上崩溃的根因）
   String _formatMonthShort(String yearMonth) {
+    final byMonth = RegExp(r'(\d{1,2})月').firstMatch(yearMonth);
+    if (byMonth != null) return '${int.parse(byMonth.group(1)!)}月';
+
     final parts = yearMonth.split('-');
+    if (parts.length < 2) return yearMonth;
     return '${int.parse(parts[1])}月';
   }
 
   String _formatMonth(String yearMonth) {
+    final byMonth = RegExp(r'(\d{1,2})月').firstMatch(yearMonth);
+    if (byMonth != null) {
+      final year = RegExp(r'(\d{4})').firstMatch(yearMonth);
+      return '${year?.group(1) ?? ''}年${int.parse(byMonth.group(1)!)}月';
+    }
+
     final parts = yearMonth.split('-');
+    if (parts.length < 2) return yearMonth;
     return '${parts[0]}年${int.parse(parts[1])}月';
   }
 

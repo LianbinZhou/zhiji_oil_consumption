@@ -213,8 +213,20 @@ class AppDatabase extends _$AppDatabase {
     return into(energyRecords).insert(record);
   }
 
-  Future<bool> updateEnergyRecord(EnergyRecordsCompanion record) {
-    return update(energyRecords).replace(record);
+  /// 更新一条能耗记录
+  ///
+  /// 用 write(companion) 而不是 replace(companion)：
+  /// replace 会校验"所有非空列都必须有值"，而编辑时我们刻意不带 createdAt
+  /// （编辑不该改变创建时间），于是会抛 InvalidDataException。
+  /// write 的语义是"只改 companion 里出现的列"，absent 的列保持原值。
+  Future<bool> updateEnergyRecord(EnergyRecordsCompanion record) async {
+    if (!record.id.present) {
+      throw ArgumentError('updateEnergyRecord 需要带 id');
+    }
+    final n = await (update(energyRecords)
+          ..where((t) => t.id.equals(record.id.value)))
+        .write(record);
+    return n > 0;
   }
 
   Future<bool> deleteEnergyRecord(int id) async {

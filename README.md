@@ -31,7 +31,7 @@
 > 装过 split 版的用户再装通用包，系统会判定为**降级并拒绝安装**，
 > 只能先卸载——**卸载会删掉本地数据库**，而这个 App 没有云端，只能事先导出 JSON。
 
-1. 到 [Releases](https://github.com/LianbinZhou/zhiji_oil_consumption/releases) 下载 `zhiji_oil_arm64_vX.Y.Z+N.apk`
+1. 到 [Releases](https://github.com/LianbinZhou/zhiji_oil_consumption/releases) 下载 `zhiji_oil_arm64_vX.Y.Z-N.apk`
 2. 手机上允许「安装未知来源应用」
 3. 装完直接打开，不需要注册、不需要联网
 4. 如果你从旧版本升级：先在旧版里「设置 → 导出备份」，新装后再导入
@@ -39,7 +39,7 @@
 每个 Release 都附带 `.sha256` 文件，可以自行校验：
 
 ```powershell
-Get-FileHash .\zhiji_oil_arm64_v1.0.0+3.apk -Algorithm SHA256
+Get-FileHash .\zhiji_oil_arm64_v1.0.0-3.apk -Algorithm SHA256
 ```
 
 ---
