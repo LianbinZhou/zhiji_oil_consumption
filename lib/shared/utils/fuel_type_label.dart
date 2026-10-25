@@ -15,8 +15,9 @@ String? fuelTypeLabel(String? raw) {
   if (raw == null) return null;
   final s = raw.trim();
   if (s.isEmpty) return null;
-  // 纯数字标号 + "#"（0# / -10# / -20# / -35#）是柴油
-  if (RegExp(r'^-?\d+#$').hasMatch(s)) return '$s柴油';
+  // 柴油只有「0#」和「负数标号」：0# / -10# / -20# / -35#
+  // 注意：93# / 92# / 95# / 98# 是【汽油】标号，不能加"柴油"
+  if (RegExp(r'^(0|-[0-9]+)#$').hasMatch(s)) return '$s柴油';
   return s;
 }
 

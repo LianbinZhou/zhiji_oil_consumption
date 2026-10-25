@@ -60,7 +60,15 @@ class _RecordDialogState extends ConsumerState<RecordDialog> {
   bool get _isHybrid => _vehicleEnergyType == 'hybrid';
   DateTime _selectedDate = DateTime.now();
 
-  static const List<String> _fuelTypes = ['92#', '95#', '98#', '0#柴油', '其他'];
+  /// 油品标号（按现行国标）
+  ///   汽油：92# / 95# / 98#
+  ///   柴油：0# / -10# / -20# / -35#（数字是凝点，北方冬天要用低温标号）
+  /// 存的是纯标号，界面上柴油会自动显示成「0#柴油」这类
+  static const List<String> _fuelTypes = [
+    '92#', '95#', '98#',
+    '0#', '-10#', '-20#', '-35#',
+    '其他',
+  ];
 
   @override
   void initState() {
@@ -511,7 +519,8 @@ class _RecordDialogState extends ConsumerState<RecordDialog> {
                       : _fuelTypes
                           .map((type) => DropdownMenuItem(
                                 value: type,
-                                child: Text(type),
+                                // 0# / -10# 这类显示成「0#柴油」，方便辨认
+                                child: Text(fuelTypeLabel(type) ?? type),
                               ))
                           .toList(),
                   onChanged: (value) {
