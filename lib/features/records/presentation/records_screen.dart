@@ -503,6 +503,9 @@ class RecordsScreen extends ConsumerWidget {
                             // "0#" 这类原始标号统一显示成 "0#柴油"
                             if (fuelTypeLabel(record.fuelType) != null)
                               _buildTag(context, fuelTypeLabel(record.fuelType)!, Theme.of(context).colorScheme.secondary),
+                              // 有优惠时给个小标签，否则这个字段用户完全看不见
+                              if (record.discount > 0)
+                                _buildTag(context, '省¥${record.discount.toStringAsFixed(0)}', const Color(0xFF16A34A)),
                           ],
                         ),
                         const SizedBox(height: 4),

@@ -93,7 +93,7 @@ class _RecordDialogState extends ConsumerState<RecordDialog> {
       _isFullTank = widget.record!.isFullTank;
       _isLightOn = widget.record!.isLightOn;
       // 导入的数据里柴油是 "0#"，下拉选项是 "0#柴油"，这里归一化一下
-      _selectedFuelType = normalizeFuelType(widget.record!.fuelType);
+      _selectedFuelType = widget.record!.fuelType;
       _stationNameController.text = widget.record!.stationName ?? '';
       _notesController.text = widget.record!.notes ?? '';
     } else {
@@ -106,7 +106,7 @@ class _RecordDialogState extends ConsumerState<RecordDialog> {
 
     if (latestRecord != null && mounted) {
       _pricePerLiterController.text = latestRecord.pricePerLiter.toString();
-      _selectedFuelType = normalizeFuelType(latestRecord.fuelType);
+      _selectedFuelType = latestRecord.fuelType;
       setState(() {
         _odometerController.text = '';
       });
@@ -479,6 +479,18 @@ class _RecordDialogState extends ConsumerState<RecordDialog> {
                   keyboardType:
                       const TextInputType.numberWithOptions(decimal: true),
                   onChanged: (_) => _calculatePrice(),
+                  validator: (v) {
+                    final d = double.tryParse(v ?? '');
+                    if (d == null) return null;
+                    if (d < 0) return '优惠不能是负数';
+                    final q = double.tryParse(_fuelAmountController.text) ?? 0;
+                    final up =
+                        double.tryParse(_pricePerLiterController.text) ?? 0;
+                    if (q > 0 && up > 0 && d > q * up) {
+                      return '优惠不能超过机显金额（${(q * up).toStringAsFixed(2)}）';
+                    }
+                    return null;
+                  },
                 ),
               ),
 
@@ -546,7 +558,14 @@ class _RecordDialogState extends ConsumerState<RecordDialog> {
                                 child: Text(e.value),
                               ))
                           .toList()
-                      : _fuelTypes
+                      : [
+                          // 历史数据可能是 '0#柴油'、'93#'、'97#' 这些不在标准列表里的值；
+                          // 不补进去的话 DropdownButton 的 initialValue 找不到匹配项（debug 会断言失败）
+                          ...{
+                            if (_selectedFuelType != null) _selectedFuelType!,
+                            ..._fuelTypes,
+                          }
+                        ]
                           .map((type) => DropdownMenuItem(
                                 value: type,
                                 // 0# / -10# 这类显示成「0#柴油」，方便辨认

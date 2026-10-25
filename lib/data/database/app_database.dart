@@ -297,8 +297,18 @@ class AppDatabase extends _$AppDatabase {
     return into(expenses).insert(expense);
   }
 
-  Future<bool> updateExpense(ExpensesCompanion expense) {
-    return update(expenses).replace(expense);
+  /// 更新一条支出记录
+  ///
+  /// 同能耗记录：用 write 而不是 replace —— replace 要求所有非空列都有值，
+  /// 而编辑时刻意不带 createdAt（不该改创建时间）。
+  Future<bool> updateExpense(ExpensesCompanion expense) async {
+    if (!expense.id.present) {
+      throw ArgumentError('updateExpense 需要带 id');
+    }
+    final n = await (update(expenses)
+          ..where((t) => t.id.equals(expense.id.value)))
+        .write(expense);
+    return n > 0;
   }
 
   Future<bool> deleteExpense(int id) async {

@@ -117,7 +117,7 @@ class ExportNotifier extends AutoDisposeNotifier<void> {
 
     final data = <String, dynamic>{
       'version': '2.0',
-      'schema_version': 4,
+      'schema_version': 5,
       'export_time': DateTime.now().toIso8601String(),
       'vehicles': vehicleJson,
       'energy_records': recordJson,
@@ -172,8 +172,9 @@ class ExportNotifier extends AutoDisposeNotifier<void> {
     if (records.isNotEmpty) {
       final sheet = excel['能源记录'];
       final headers = [
-        '日期', '能源类型', '数量', '单位', '金额(元)', '单价',
-        '里程(公里)', '是否加满', '是否亮灯', '油品', '充电方式', '站点', '备注',
+        '日期', '能源类型', '数量', '单位', '实付金额(元)', '优惠(元)',
+        '机显金额(元)', '单价', '里程(公里)', '是否加满', '是否亮灯', '油品',
+        '充电方式', '站点', '备注',
       ];
       for (var c = 0; c < headers.length; c++) {
         sheet
@@ -191,6 +192,8 @@ class ExportNotifier extends AutoDisposeNotifier<void> {
           DoubleCellValue(r.quantity),
           TextCellValue(isElectric ? 'kWh' : 'L'),
           DoubleCellValue(r.amount),
+          DoubleCellValue(r.discount),
+          DoubleCellValue(r.amount + r.discount),
           DoubleCellValue(r.unitPrice),
           DoubleCellValue(r.odometer),
           TextCellValue(r.isFull ? '是' : '否'),
@@ -415,6 +418,7 @@ class ExportNotifier extends AutoDisposeNotifier<void> {
                   DateTime.fromMillisecondsSinceEpoch(r.date).toIso8601String(),
               'quantity': r.quantity,
               'amount': r.amount,
+              'discount': r.discount,
               'unit_price': r.unitPrice,
               'odometer': r.odometer,
               'is_full': r.isFull,

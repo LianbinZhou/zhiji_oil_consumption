@@ -21,8 +21,3 @@ String? fuelTypeLabel(String? raw) {
   return s;
 }
 
-/// 编辑时的归一化：把 "0#" 这类原始值转成下拉框里存在的选项
-///
-/// 下拉选项是 ['92#', '95#', '98#', '0#柴油', '其他']，
-/// 如果直接把导入的 "0#" 塞进去，Dropdown 找不到匹配项会显示空白。
-String? normalizeFuelType(String? raw) => fuelTypeLabel(raw);

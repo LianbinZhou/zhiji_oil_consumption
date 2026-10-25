@@ -57,7 +57,7 @@ class ExpensesNotifier extends AutoDisposeNotifier<void> {
       mileage: drift.Value(mileage),
       amount: drift.Value(amount),
       notes: drift.Value(notes),
-      createdAt: drift.Value(DateTime.now().millisecondsSinceEpoch),
+      // 编辑不该改创建时间（不传 createdAt，交给 write 保持原值）
     ));
   }
 

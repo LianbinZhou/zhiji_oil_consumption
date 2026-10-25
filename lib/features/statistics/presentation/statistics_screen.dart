@@ -233,7 +233,9 @@ class StatisticsScreen extends ConsumerWidget {
               children: [
                 _buildStatItem(context, '总记录数', '${stats.totalRecords}条', Icons.receipt_long, null),
                 _buildStatItem(context, '能源花费', '¥${_formatMoney(stats.totalCost)}', Icons.attach_money, const Color(0xFFEF5350)),
-                _buildStatItem(context, '总加油量', '${UnitConverter.volume(stats.totalFuel, settings.fuelUnit).toStringAsFixed(0)}${UnitConverter.volumeSymbol(settings.fuelUnit)}', Icons.local_gas_station, const Color(0xFF42A5F5)),
+                // 纯电车没有加油记录，这一格显示 0L 会让人以为数据错了 —— 干脆不显示
+                if (stats.totalFuel > 0)
+                  _buildStatItem(context, '总加油量', '${UnitConverter.volume(stats.totalFuel, settings.fuelUnit).toStringAsFixed(0)}${UnitConverter.volumeSymbol(settings.fuelUnit)}', Icons.local_gas_station, const Color(0xFF42A5F5)),
                 _buildStatItem(
                   context,
                   stats.consumptionMethod == null
@@ -268,21 +270,23 @@ class StatisticsScreen extends ConsumerWidget {
               ],
             ),
             const SizedBox(height: 8),
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 4),
-              child: Row(
-                children: [
-                  Icon(Icons.price_change, size: 20, color: Theme.of(context).colorScheme.primary),
-                  const SizedBox(width: 8),
-                  Text('油价范围:', style: Theme.of(context).textTheme.bodyMedium),
-                  const Spacer(),
-                  Text(
-                    '¥${stats.minPricePerLiter.toStringAsFixed(2)} - ¥${stats.maxPricePerLiter.toStringAsFixed(2)}/L',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.bold),
-                  ),
-                ],
+            // 纯电车没有油价数据，显示 ¥0.00 - ¥0.00/L 是误导，直接不显示
+            if (stats.minPricePerLiter > 0 || stats.maxPricePerLiter > 0)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Row(
+                  children: [
+                    Icon(Icons.price_change, size: 20, color: Theme.of(context).colorScheme.primary),
+                    const SizedBox(width: 8),
+                    Text('油价范围:', style: Theme.of(context).textTheme.bodyMedium),
+                    const Spacer(),
+                    Text(
+                      '¥${stats.minPricePerLiter.toStringAsFixed(2)} - ¥${stats.maxPricePerLiter.toStringAsFixed(2)}/L',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
               ),
-            ),
           ],
         ),
       ),
