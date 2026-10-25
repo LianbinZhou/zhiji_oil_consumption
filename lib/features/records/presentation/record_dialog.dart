@@ -29,6 +29,7 @@ class _RecordDialogState extends ConsumerState<RecordDialog> {
   final _dateController = TextEditingController();
   final _fuelAmountController = TextEditingController();
   final _totalPriceController = TextEditingController();
+  final _discountController = TextEditingController();
   final _pricePerLiterController = TextEditingController();
   final _odometerController = TextEditingController();
   final _stationNameController = TextEditingController();
@@ -85,6 +86,8 @@ class _RecordDialogState extends ConsumerState<RecordDialog> {
       _dateController.text = _formatDate(_selectedDate);
       _fuelAmountController.text = widget.record!.fuelAmount.toString();
       _totalPriceController.text = widget.record!.totalPrice.toString();
+      _discountController.text =
+          widget.record!.discount > 0 ? widget.record!.discount.toString() : '';
       _pricePerLiterController.text = widget.record!.pricePerLiter.toString();
       _odometerController.text = widget.record!.odometer.toString();
       _isFullTank = widget.record!.isFullTank;
@@ -135,6 +138,7 @@ class _RecordDialogState extends ConsumerState<RecordDialog> {
     _dateController.dispose();
     _fuelAmountController.dispose();
     _totalPriceController.dispose();
+    _discountController.dispose();
     _pricePerLiterController.dispose();
     _odometerController.dispose();
     _stationNameController.dispose();
@@ -158,13 +162,20 @@ class _RecordDialogState extends ConsumerState<RecordDialog> {
     }
   }
 
+  /// 机显金额 = 数量 × 单价；实付 = 机显 − 优惠
+  ///
+  /// 为什么这么算：油站标价和你实际付的钱经常不一样（会员价、券、活动）。
+  /// 统计里的「每公里成本」「均价」都用实付，所以输入框显示的是扣完优惠的金额。
   void _calculatePrice() {
     final fuelAmount = double.tryParse(_fuelAmountController.text);
     final pricePerLiter = double.tryParse(_pricePerLiterController.text);
+    final discount = double.tryParse(_discountController.text) ?? 0;
 
     if (fuelAmount != null && pricePerLiter != null) {
-      final totalPrice = fuelAmount * pricePerLiter;
-      _totalPriceController.text = totalPrice.toStringAsFixed(2);
+      final gross = fuelAmount * pricePerLiter;
+      final paid = gross - discount;
+      _totalPriceController.text =
+          (paid > 0 ? paid : 0).toStringAsFixed(2);
     }
   }
 
@@ -282,6 +293,7 @@ class _RecordDialogState extends ConsumerState<RecordDialog> {
       final totalPrice = double.parse(_totalPriceController.text);
       final pricePerLiter = double.parse(_pricePerLiterController.text);
       final odometer = double.parse(_odometerController.text);
+      final discount = double.tryParse(_discountController.text) ?? 0;
       final stationName = _stationNameController.text.trim();
       final notes = _notesController.text.trim();
 
@@ -296,8 +308,9 @@ class _RecordDialogState extends ConsumerState<RecordDialog> {
           isFullTank: _isFullTank,
           isLightOn: _isLightOn,
           fuelType: _isElectricMode ? null : _selectedFuelType,
-      chargeMethod: _isElectricMode ? _selectedChargeMethod : null,
-      energyType: _recordEnergyType,
+          chargeMethod: _isElectricMode ? _selectedChargeMethod : null,
+          energyType: _recordEnergyType,
+          discount: discount,
           stationName: stationName.isEmpty ? null : stationName,
           notes: notes.isEmpty ? null : notes,
         );
@@ -455,9 +468,26 @@ class _RecordDialogState extends ConsumerState<RecordDialog> {
               const SizedBox(height: 16),
 
               LabeledField(
-                label: '总金额(元)',
+                label: '优惠金额(元)',
+                helper: '油站优惠/券，没有就留空',
+                child: TextFormField(
+                  controller: _discountController,
+                  decoration: fieldDecoration(
+                    icon: Icons.local_offer,
+                    hint: '例如:43',
+                  ),
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
+                  onChanged: (_) => _calculatePrice(),
+                ),
+              ),
+
+              const SizedBox(height: 16),
+
+              LabeledField(
+                label: '实付金额(元)',
                 isRequired: true,
-                helper: '自动计算，也可手改',
+                helper: '机显金额 − 优惠，也可手改',
                 child: TextFormField(
                   controller: _totalPriceController,
                   decoration: fieldDecoration(

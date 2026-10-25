@@ -24,7 +24,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase(super.e);
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration {
@@ -40,7 +40,28 @@ class AppDatabase extends _$AppDatabase {
             await _migrateToV4();
           });
         }
+        if (from < 5) {
+          await transaction(() async {
+            await _migrateToV5();
+          });
+        }
       },
+    );
+  }
+
+
+  // ==================== v4 → v5 迁移 ====================
+
+  /// v4 → v5：加「优惠金额」列
+  ///
+  /// 为什么单独存优惠而不是存机显金额：
+  ///   amount 已经表示"实付"，统计全用它；机显金额 = amount + discount 可以推算。
+  ///   只加一列，三个数都能还原，也不会出现"三列互相矛盾"的状态。
+  Future<void> _migrateToV5() async {
+    await _ensureColumn(
+      'energy_records',
+      'discount',
+      'REAL NOT NULL DEFAULT 0',
     );
   }
 

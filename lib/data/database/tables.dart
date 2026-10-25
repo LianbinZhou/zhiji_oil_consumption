@@ -134,9 +134,15 @@ class EnergyRecords extends Table {
   /// 【v4 改名】原 fuelAmount
   RealColumn get quantity => real()();
 
-  /// 总金额（元）
+  /// 实付金额（元）—— 统计（每公里成本、均价、总花费）都用这个
   /// 【v4 改名】原 totalPrice
   RealColumn get amount => real()();
+
+  /// 【v5 新增】优惠金额（元）
+  /// 油站标价 743、实际付 700 → amount=700, discount=43
+  /// 机显金额 = amount + discount（不单独存，避免三列互相矛盾）
+  RealColumn get discount =>
+      real().withDefault(const Constant(0.0))();
 
   /// 单价：元/升 或 元/kWh
   /// 【v4 改名】原 pricePerLiter

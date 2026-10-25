@@ -629,6 +629,14 @@ class $EnergyRecordsTable extends EnergyRecords
   late final GeneratedColumn<double> amount = GeneratedColumn<double>(
       'amount', aliasedName, false,
       type: DriftSqlType.double, requiredDuringInsert: true);
+  static const VerificationMeta _discountMeta =
+      const VerificationMeta('discount');
+  @override
+  late final GeneratedColumn<double> discount = GeneratedColumn<double>(
+      'discount', aliasedName, false,
+      type: DriftSqlType.double,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0.0));
   static const VerificationMeta _unitPriceMeta =
       const VerificationMeta('unitPrice');
   @override
@@ -703,6 +711,7 @@ class $EnergyRecordsTable extends EnergyRecords
         date,
         quantity,
         amount,
+        discount,
         unitPrice,
         odometer,
         isFull,
@@ -755,6 +764,10 @@ class $EnergyRecordsTable extends EnergyRecords
           amount.isAcceptableOrUnknown(data['amount']!, _amountMeta));
     } else if (isInserting) {
       context.missing(_amountMeta);
+    }
+    if (data.containsKey('discount')) {
+      context.handle(_discountMeta,
+          discount.isAcceptableOrUnknown(data['discount']!, _discountMeta));
     }
     if (data.containsKey('unit_price')) {
       context.handle(_unitPriceMeta,
@@ -825,6 +838,8 @@ class $EnergyRecordsTable extends EnergyRecords
           .read(DriftSqlType.double, data['${effectivePrefix}quantity'])!,
       amount: attachedDatabase.typeMapping
           .read(DriftSqlType.double, data['${effectivePrefix}amount'])!,
+      discount: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}discount'])!,
       unitPrice: attachedDatabase.typeMapping
           .read(DriftSqlType.double, data['${effectivePrefix}unit_price'])!,
       odometer: attachedDatabase.typeMapping
@@ -869,9 +884,14 @@ class EnergyRecord extends DataClass implements Insertable<EnergyRecord> {
   /// 【v4 改名】原 fuelAmount
   final double quantity;
 
-  /// 总金额（元）
+  /// 实付金额（元）—— 统计（每公里成本、均价、总花费）都用这个
   /// 【v4 改名】原 totalPrice
   final double amount;
+
+  /// 【v5 新增】优惠金额（元）
+  /// 油站标价 743、实际付 700 → amount=700, discount=43
+  /// 机显金额 = amount + discount（不单独存，避免三列互相矛盾）
+  final double discount;
 
   /// 单价：元/升 或 元/kWh
   /// 【v4 改名】原 pricePerLiter
@@ -908,6 +928,7 @@ class EnergyRecord extends DataClass implements Insertable<EnergyRecord> {
       required this.date,
       required this.quantity,
       required this.amount,
+      required this.discount,
       required this.unitPrice,
       required this.odometer,
       required this.isFull,
@@ -926,6 +947,7 @@ class EnergyRecord extends DataClass implements Insertable<EnergyRecord> {
     map['date'] = Variable<int>(date);
     map['quantity'] = Variable<double>(quantity);
     map['amount'] = Variable<double>(amount);
+    map['discount'] = Variable<double>(discount);
     map['unit_price'] = Variable<double>(unitPrice);
     map['odometer'] = Variable<double>(odometer);
     map['is_full'] = Variable<bool>(isFull);
@@ -954,6 +976,7 @@ class EnergyRecord extends DataClass implements Insertable<EnergyRecord> {
       date: Value(date),
       quantity: Value(quantity),
       amount: Value(amount),
+      discount: Value(discount),
       unitPrice: Value(unitPrice),
       odometer: Value(odometer),
       isFull: Value(isFull),
@@ -983,6 +1006,7 @@ class EnergyRecord extends DataClass implements Insertable<EnergyRecord> {
       date: serializer.fromJson<int>(json['date']),
       quantity: serializer.fromJson<double>(json['quantity']),
       amount: serializer.fromJson<double>(json['amount']),
+      discount: serializer.fromJson<double>(json['discount']),
       unitPrice: serializer.fromJson<double>(json['unitPrice']),
       odometer: serializer.fromJson<double>(json['odometer']),
       isFull: serializer.fromJson<bool>(json['isFull']),
@@ -1004,6 +1028,7 @@ class EnergyRecord extends DataClass implements Insertable<EnergyRecord> {
       'date': serializer.toJson<int>(date),
       'quantity': serializer.toJson<double>(quantity),
       'amount': serializer.toJson<double>(amount),
+      'discount': serializer.toJson<double>(discount),
       'unitPrice': serializer.toJson<double>(unitPrice),
       'odometer': serializer.toJson<double>(odometer),
       'isFull': serializer.toJson<bool>(isFull),
@@ -1023,6 +1048,7 @@ class EnergyRecord extends DataClass implements Insertable<EnergyRecord> {
           int? date,
           double? quantity,
           double? amount,
+          double? discount,
           double? unitPrice,
           double? odometer,
           bool? isFull,
@@ -1039,6 +1065,7 @@ class EnergyRecord extends DataClass implements Insertable<EnergyRecord> {
         date: date ?? this.date,
         quantity: quantity ?? this.quantity,
         amount: amount ?? this.amount,
+        discount: discount ?? this.discount,
         unitPrice: unitPrice ?? this.unitPrice,
         odometer: odometer ?? this.odometer,
         isFull: isFull ?? this.isFull,
@@ -1059,6 +1086,7 @@ class EnergyRecord extends DataClass implements Insertable<EnergyRecord> {
       date: data.date.present ? data.date.value : this.date,
       quantity: data.quantity.present ? data.quantity.value : this.quantity,
       amount: data.amount.present ? data.amount.value : this.amount,
+      discount: data.discount.present ? data.discount.value : this.discount,
       unitPrice: data.unitPrice.present ? data.unitPrice.value : this.unitPrice,
       odometer: data.odometer.present ? data.odometer.value : this.odometer,
       isFull: data.isFull.present ? data.isFull.value : this.isFull,
@@ -1083,6 +1111,7 @@ class EnergyRecord extends DataClass implements Insertable<EnergyRecord> {
           ..write('date: $date, ')
           ..write('quantity: $quantity, ')
           ..write('amount: $amount, ')
+          ..write('discount: $discount, ')
           ..write('unitPrice: $unitPrice, ')
           ..write('odometer: $odometer, ')
           ..write('isFull: $isFull, ')
@@ -1104,6 +1133,7 @@ class EnergyRecord extends DataClass implements Insertable<EnergyRecord> {
       date,
       quantity,
       amount,
+      discount,
       unitPrice,
       odometer,
       isFull,
@@ -1123,6 +1153,7 @@ class EnergyRecord extends DataClass implements Insertable<EnergyRecord> {
           other.date == this.date &&
           other.quantity == this.quantity &&
           other.amount == this.amount &&
+          other.discount == this.discount &&
           other.unitPrice == this.unitPrice &&
           other.odometer == this.odometer &&
           other.isFull == this.isFull &&
@@ -1141,6 +1172,7 @@ class EnergyRecordsCompanion extends UpdateCompanion<EnergyRecord> {
   final Value<int> date;
   final Value<double> quantity;
   final Value<double> amount;
+  final Value<double> discount;
   final Value<double> unitPrice;
   final Value<double> odometer;
   final Value<bool> isFull;
@@ -1157,6 +1189,7 @@ class EnergyRecordsCompanion extends UpdateCompanion<EnergyRecord> {
     this.date = const Value.absent(),
     this.quantity = const Value.absent(),
     this.amount = const Value.absent(),
+    this.discount = const Value.absent(),
     this.unitPrice = const Value.absent(),
     this.odometer = const Value.absent(),
     this.isFull = const Value.absent(),
@@ -1174,6 +1207,7 @@ class EnergyRecordsCompanion extends UpdateCompanion<EnergyRecord> {
     required int date,
     required double quantity,
     required double amount,
+    this.discount = const Value.absent(),
     required double unitPrice,
     required double odometer,
     this.isFull = const Value.absent(),
@@ -1197,6 +1231,7 @@ class EnergyRecordsCompanion extends UpdateCompanion<EnergyRecord> {
     Expression<int>? date,
     Expression<double>? quantity,
     Expression<double>? amount,
+    Expression<double>? discount,
     Expression<double>? unitPrice,
     Expression<double>? odometer,
     Expression<bool>? isFull,
@@ -1214,6 +1249,7 @@ class EnergyRecordsCompanion extends UpdateCompanion<EnergyRecord> {
       if (date != null) 'date': date,
       if (quantity != null) 'quantity': quantity,
       if (amount != null) 'amount': amount,
+      if (discount != null) 'discount': discount,
       if (unitPrice != null) 'unit_price': unitPrice,
       if (odometer != null) 'odometer': odometer,
       if (isFull != null) 'is_full': isFull,
@@ -1233,6 +1269,7 @@ class EnergyRecordsCompanion extends UpdateCompanion<EnergyRecord> {
       Value<int>? date,
       Value<double>? quantity,
       Value<double>? amount,
+      Value<double>? discount,
       Value<double>? unitPrice,
       Value<double>? odometer,
       Value<bool>? isFull,
@@ -1249,6 +1286,7 @@ class EnergyRecordsCompanion extends UpdateCompanion<EnergyRecord> {
       date: date ?? this.date,
       quantity: quantity ?? this.quantity,
       amount: amount ?? this.amount,
+      discount: discount ?? this.discount,
       unitPrice: unitPrice ?? this.unitPrice,
       odometer: odometer ?? this.odometer,
       isFull: isFull ?? this.isFull,
@@ -1281,6 +1319,9 @@ class EnergyRecordsCompanion extends UpdateCompanion<EnergyRecord> {
     }
     if (amount.present) {
       map['amount'] = Variable<double>(amount.value);
+    }
+    if (discount.present) {
+      map['discount'] = Variable<double>(discount.value);
     }
     if (unitPrice.present) {
       map['unit_price'] = Variable<double>(unitPrice.value);
@@ -1321,6 +1362,7 @@ class EnergyRecordsCompanion extends UpdateCompanion<EnergyRecord> {
           ..write('date: $date, ')
           ..write('quantity: $quantity, ')
           ..write('amount: $amount, ')
+          ..write('discount: $discount, ')
           ..write('unitPrice: $unitPrice, ')
           ..write('odometer: $odometer, ')
           ..write('isFull: $isFull, ')
@@ -2283,6 +2325,7 @@ typedef $$EnergyRecordsTableCreateCompanionBuilder = EnergyRecordsCompanion
   required int date,
   required double quantity,
   required double amount,
+  Value<double> discount,
   required double unitPrice,
   required double odometer,
   Value<bool> isFull,
@@ -2301,6 +2344,7 @@ typedef $$EnergyRecordsTableUpdateCompanionBuilder = EnergyRecordsCompanion
   Value<int> date,
   Value<double> quantity,
   Value<double> amount,
+  Value<double> discount,
   Value<double> unitPrice,
   Value<double> odometer,
   Value<bool> isFull,
@@ -2355,6 +2399,9 @@ class $$EnergyRecordsTableFilterComposer
 
   ColumnFilters<double> get amount => $composableBuilder(
       column: $table.amount, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get discount => $composableBuilder(
+      column: $table.discount, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<double> get unitPrice => $composableBuilder(
       column: $table.unitPrice, builder: (column) => ColumnFilters(column));
@@ -2428,6 +2475,9 @@ class $$EnergyRecordsTableOrderingComposer
   ColumnOrderings<double> get amount => $composableBuilder(
       column: $table.amount, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<double> get discount => $composableBuilder(
+      column: $table.discount, builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<double> get unitPrice => $composableBuilder(
       column: $table.unitPrice, builder: (column) => ColumnOrderings(column));
 
@@ -2500,6 +2550,9 @@ class $$EnergyRecordsTableAnnotationComposer
 
   GeneratedColumn<double> get amount =>
       $composableBuilder(column: $table.amount, builder: (column) => column);
+
+  GeneratedColumn<double> get discount =>
+      $composableBuilder(column: $table.discount, builder: (column) => column);
 
   GeneratedColumn<double> get unitPrice =>
       $composableBuilder(column: $table.unitPrice, builder: (column) => column);
@@ -2578,6 +2631,7 @@ class $$EnergyRecordsTableTableManager extends RootTableManager<
             Value<int> date = const Value.absent(),
             Value<double> quantity = const Value.absent(),
             Value<double> amount = const Value.absent(),
+            Value<double> discount = const Value.absent(),
             Value<double> unitPrice = const Value.absent(),
             Value<double> odometer = const Value.absent(),
             Value<bool> isFull = const Value.absent(),
@@ -2595,6 +2649,7 @@ class $$EnergyRecordsTableTableManager extends RootTableManager<
             date: date,
             quantity: quantity,
             amount: amount,
+            discount: discount,
             unitPrice: unitPrice,
             odometer: odometer,
             isFull: isFull,
@@ -2612,6 +2667,7 @@ class $$EnergyRecordsTableTableManager extends RootTableManager<
             required int date,
             required double quantity,
             required double amount,
+            Value<double> discount = const Value.absent(),
             required double unitPrice,
             required double odometer,
             Value<bool> isFull = const Value.absent(),
@@ -2629,6 +2685,7 @@ class $$EnergyRecordsTableTableManager extends RootTableManager<
             date: date,
             quantity: quantity,
             amount: amount,
+            discount: discount,
             unitPrice: unitPrice,
             odometer: odometer,
             isFull: isFull,

@@ -26,6 +26,9 @@ class FuelRecordModel {
   /// 单价(元/升)
   /// 例如:6.93表示每升6.93元
   final double pricePerLiter;
+
+  /// 优惠金额（元）：机显金额 - 实付金额
+  final double discount;
   
   /// 当前里程数(公里)
   /// 加油时车辆的总行驶里程
@@ -73,11 +76,10 @@ class FuelRecordModel {
     this.fuelType,
     this.stationName,
     this.notes,
+    this.discount = 0,
     DateTime? createdAt,
   }) : createdAt = createdAt ?? DateTime.now();
 
-  /// 计算每公里成本(元/公里)
-  /// 
   /// 创建一个副本,但可以修改某些字段
   FuelRecordModel copyWith({
     int? id,
@@ -86,6 +88,7 @@ class FuelRecordModel {
     double? fuelAmount,
     double? totalPrice,
     double? pricePerLiter,
+    double? discount,
     double? odometer,
     bool? isFullTank,
     bool? isLightOn,
@@ -103,6 +106,7 @@ class FuelRecordModel {
       fuelAmount: fuelAmount ?? this.fuelAmount,
       totalPrice: totalPrice ?? this.totalPrice,
       pricePerLiter: pricePerLiter ?? this.pricePerLiter,
+      discount: discount ?? this.discount,
       odometer: odometer ?? this.odometer,
       isFullTank: isFullTank ?? this.isFullTank,
       isLightOn: isLightOn ?? this.isLightOn,

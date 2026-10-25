@@ -84,6 +84,7 @@ class ExportNotifier extends AutoDisposeNotifier<void> {
           'date': DateTime.fromMillisecondsSinceEpoch(r.date).toIso8601String(),
           'quantity': r.quantity,
           'amount': r.amount,
+          'discount': r.discount,
           'unit_price': r.unitPrice,
           'odometer': r.odometer,
           'is_full': r.isFull,
@@ -493,6 +494,7 @@ class ExportNotifier extends AutoDisposeNotifier<void> {
         date: Value(_parseMs(r['date'])),
         quantity: Value(_toDouble(r['quantity'])),
         amount: Value(_toDouble(r['amount'])),
+        discount: Value(_toDouble(r['discount'])),  // 老备份没有这列 -> 0
         unitPrice: Value(_toDouble(r['unit_price'])),
         odometer: Value(_toDouble(r['odometer'])),
         isFull: Value(r['is_full'] as bool? ?? false),

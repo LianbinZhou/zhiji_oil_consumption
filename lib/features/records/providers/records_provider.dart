@@ -79,6 +79,7 @@ class RecordsNotifier extends AutoDisposeNotifier<List<model.FuelRecordModel>> {
     String? fuelType,
     String? chargeMethod,
     String energyType = 'gasoline',
+    double discount = 0,
     String? stationName,
     String? notes,
   }) async {
@@ -118,6 +119,7 @@ class RecordsNotifier extends AutoDisposeNotifier<List<model.FuelRecordModel>> {
     String? fuelType,
     String? chargeMethod,
     String energyType = 'gasoline',
+    double discount = 0,
     String? stationName,
     String? notes,
   }) async {

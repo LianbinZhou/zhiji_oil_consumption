@@ -24,6 +24,7 @@ EnergyRecord rec({
     date: 1700000000000 + id * 86400000,
     quantity: quantity,
     amount: quantity * 7.5,
+    discount: 0,
     unitPrice: 7.5,
     odometer: odometer,
     isFull: isFull,
