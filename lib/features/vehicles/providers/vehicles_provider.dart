@@ -103,22 +103,11 @@ class VehiclesNotifier extends AutoDisposeNotifier<List<model.Vehicle>> {
     await database.insertVehicle(vehicle);
   }
 
-  /// 更新车辆信息
-  /// 
-  /// [id] 车辆ID
-  /// [brand] 新的品牌名称
-  /// [modelName] 新的型号
-  /// [licensePlate] 新的车牌号码
-  /// [color] 新的颜色
-  /// [notes] 新的备注
-  /// 设为默认车辆
-  /// 
-  /// 将指定车辆设为默认,同时取消其他车辆的默认状态
   /// 设为默认车辆
   ///
   /// 两个要点：
-  /// 1. 必须显式带 energyType —— 即使 updateVehicle 已改成 write（不会补默认值），
-  ///    多带一个字段也不会错，是第二道保险（旧代码用 replace 时这里直接丢过能源类型）
+  /// 1. 两条 updateVehicle 都显式带 energyType —— 旧代码用 replace 时这里丢过能源类型
+  ///    （Drift 的 replace 会给缺席列补默认值，而 energy_type 默认是 gasoline）
   /// 2. 整个过程包进事务 —— 中途失败不能留下「零个默认车」或「两个默认车」
   Future<void> setDefaultVehicle(int vehicleId) async {
     final database = ref.read(databaseProvider);

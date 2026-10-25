@@ -444,7 +444,10 @@ class _RecordDialogState extends ConsumerState<RecordDialog> {
                     if (value == null || value.isEmpty) {
                       return _isElectricMode ? '请输入充电量' : '请输入加油量';
                     }
-                    if (double.tryParse(value) == null) return '请输入有效数字';
+                    final parsed = double.tryParse(value);
+                    if (parsed == null || !parsed.isFinite) {
+                      return '请输入有效数字';
+                    }
                     return null;
                   },
                 ),
@@ -468,7 +471,10 @@ class _RecordDialogState extends ConsumerState<RecordDialog> {
                     if (value == null || value.isEmpty) {
                       return _isElectricMode ? '请输入电价' : '请输入单价';
                     }
-                    if (double.tryParse(value) == null) return '请输入有效数字';
+                    final parsed = double.tryParse(value);
+                    if (parsed == null || !parsed.isFinite) {
+                      return '请输入有效数字';
+                    }
                     return null;
                   },
                 ),
@@ -520,7 +526,10 @@ class _RecordDialogState extends ConsumerState<RecordDialog> {
                       const TextInputType.numberWithOptions(decimal: true),
                   validator: (value) {
                     if (value == null || value.isEmpty) return '请输入总金额';
-                    if (double.tryParse(value) == null) return '请输入有效数字';
+                    final parsed = double.tryParse(value);
+                    if (parsed == null || !parsed.isFinite) {
+                      return '请输入有效数字';
+                    }
                     return null;
                   },
                 ),
@@ -541,7 +550,10 @@ class _RecordDialogState extends ConsumerState<RecordDialog> {
                       const TextInputType.numberWithOptions(decimal: true),
                   validator: (value) {
                     if (value == null || value.isEmpty) return '请输入里程数';
-                    if (double.tryParse(value) == null) return '请输入有效数字';
+                    final parsed = double.tryParse(value);
+                    if (parsed == null || !parsed.isFinite) {
+                      return '请输入有效数字';
+                    }
                     return null;
                   },
                 ),

@@ -386,7 +386,10 @@ class _ExpenseDialogState extends ConsumerState<ExpenseDialog> {
                       const TextInputType.numberWithOptions(decimal: true),
                   validator: (v) {
                     if (v == null || v.isEmpty) return '请输入金额';
-                    if (double.tryParse(v) == null) return '请输入有效数字';
+                    final parsed = double.tryParse(v);
+                  if (parsed == null || !parsed.isFinite) {
+                    return '请输入有效数字';
+                  }
                     return null;
                   },
                 ),
