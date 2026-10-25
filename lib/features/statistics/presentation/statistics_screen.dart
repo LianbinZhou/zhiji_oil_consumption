@@ -362,7 +362,10 @@ class StatisticsScreen extends ConsumerWidget {
     final sorted = List<YearlyStats>.from(yearlyList)
       ..sort((a, b) => a.year.compareTo(b.year));
 
-    final maxCost = sorted.map((y) => y.totalCost).reduce((a, b) => a > b ? a : b);
+    // 所有年度花费都为 0 时（免费充电/脏数据），maxCost*1.2 会是 0，
+    // fl_chart 的 horizontalInterval 为 0 会在绘制阶段炸（除零 -> Infinity -> truncate 抛错）
+    final rawMax = sorted.map((y) => y.totalCost).reduce((a, b) => a > b ? a : b);
+    final maxCost = rawMax > 0 ? rawMax : 1.0;
 
     return Card(
       elevation: 1,

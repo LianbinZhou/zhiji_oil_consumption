@@ -57,7 +57,8 @@ class ExpensesNotifier extends AutoDisposeNotifier<void> {
       mileage: drift.Value(mileage),
       amount: drift.Value(amount),
       notes: drift.Value(notes),
-      // 编辑不该改创建时间（不传 createdAt，交给 write 保持原值）
+      // 新增必须给 createdAt（该列 NOT NULL 且无默认值，漏了 Drift 直接抛 InvalidDataException）
+      createdAt: drift.Value(DateTime.now().millisecondsSinceEpoch),
     ));
   }
 
@@ -83,7 +84,7 @@ class ExpensesNotifier extends AutoDisposeNotifier<void> {
       mileage: drift.Value(mileage),
       amount: drift.Value(amount),
       notes: drift.Value(notes),
-      createdAt: drift.Value(DateTime.now().millisecondsSinceEpoch),
+      // 编辑不该改创建时间（不传 createdAt，由 updateExpense 的 write 保持原值）
     ));
   }
 

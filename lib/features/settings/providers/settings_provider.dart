@@ -138,11 +138,14 @@ class SettingsNotifier extends AutoDisposeNotifier<SettingsState> {
     
     // 读取距离单位
     final distanceUnitIndex = prefs.getInt(_distanceUnitKey) ?? 0;
-    final distanceUnit = DistanceUnit.values[distanceUnitIndex];
+    // 导入的备份可能带越界索引（如 99），不 clamp 会每次启动都抛 RangeError
+    final distanceUnit = DistanceUnit.values[
+        distanceUnitIndex.clamp(0, DistanceUnit.values.length - 1)];
     
     // 读取油量单位
     final fuelUnitIndex = prefs.getInt(_fuelUnitKey) ?? 0;
-    final fuelUnit = FuelUnit.values[fuelUnitIndex];
+    final fuelUnit =
+        FuelUnit.values[fuelUnitIndex.clamp(0, FuelUnit.values.length - 1)];
     
     // 读取货币类型
     final currencyIndex = prefs.getInt(_currencyKey) ?? 0;
@@ -150,7 +153,8 @@ class SettingsNotifier extends AutoDisposeNotifier<SettingsState> {
     
     // 读取主题模式
     final themeModeIndex = prefs.getInt(_themeModeKey) ?? 2; // 默认跟随系统
-    final themeMode = AppThemeMode.values[themeModeIndex];
+    final themeMode = AppThemeMode.values[
+        themeModeIndex.clamp(0, AppThemeMode.values.length - 1)];
     
     return AppSettings(
       distanceUnit: distanceUnit,

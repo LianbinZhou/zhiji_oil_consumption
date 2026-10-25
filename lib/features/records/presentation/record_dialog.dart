@@ -30,6 +30,10 @@ class _RecordDialogState extends ConsumerState<RecordDialog> {
   final _fuelAmountController = TextEditingController();
   final _totalPriceController = TextEditingController();
   final _discountController = TextEditingController();
+
+  /// 用户是否手动改过「实付金额」
+  /// 改过之后，数量/单价/优惠变动就不该再自动覆盖它（现实里实付经常和理论值不一致）
+  bool _totalPriceManuallyEdited = false;
   final _pricePerLiterController = TextEditingController();
   final _odometerController = TextEditingController();
   final _stationNameController = TextEditingController();
@@ -170,6 +174,9 @@ class _RecordDialogState extends ConsumerState<RecordDialog> {
     final fuelAmount = double.tryParse(_fuelAmountController.text);
     final pricePerLiter = double.tryParse(_pricePerLiterController.text);
     final discount = double.tryParse(_discountController.text) ?? 0;
+
+    // 用户手改过实付金额就不再自动覆盖（否则改完金额再动一下单价，手填的就被抹了）
+    if (_totalPriceManuallyEdited) return;
 
     if (fuelAmount != null && pricePerLiter != null) {
       final gross = fuelAmount * pricePerLiter;
@@ -335,6 +342,8 @@ class _RecordDialogState extends ConsumerState<RecordDialog> {
       chargeMethod: _isElectricMode ? _selectedChargeMethod : null,
       energyType: _recordEnergyType,
           stationName: stationName.isEmpty ? null : stationName,
+          // 编辑时必须把优惠原样带回去，否则 updateRecord 的默认值 0 会把它清零
+          discount: discount,
           notes: notes.isEmpty ? null : notes,
         );
 
@@ -506,6 +515,7 @@ class _RecordDialogState extends ConsumerState<RecordDialog> {
                     icon: Icons.payments,
                     hint: '例如:450.96',
                   ),
+                  onChanged: (_) => _totalPriceManuallyEdited = true,
                   keyboardType:
                       const TextInputType.numberWithOptions(decimal: true),
                   validator: (value) {
@@ -590,6 +600,7 @@ class _RecordDialogState extends ConsumerState<RecordDialog> {
                 label: _isElectricMode ? '充电站名称' : '加油站名称',
                 child: TextFormField(
                   controller: _stationNameController,
+                  maxLength: 50,
                   decoration: fieldDecoration(
                     icon: Icons.store,
                     hint: _isElectricMode ? '例如:特来电XX站' : '例如:中石化XX站',

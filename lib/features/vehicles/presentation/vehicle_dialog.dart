@@ -185,6 +185,7 @@ class _VehicleDialogState extends ConsumerState<VehicleDialog> {
                 isRequired: true,
                 child: TextFormField(
                   controller: _brandController,
+                  maxLength: 50,
                   decoration: fieldDecoration(
                     icon: Icons.branding_watermark,
                     hint: '例如:丰田、本田',
@@ -205,6 +206,7 @@ class _VehicleDialogState extends ConsumerState<VehicleDialog> {
                 isRequired: true,
                 child: TextFormField(
                   controller: _modelController,
+                  maxLength: 50,
                   decoration: fieldDecoration(
                     icon: Icons.directions_car,
                     hint: '例如:卡罗拉、雅阁',
@@ -225,6 +227,7 @@ class _VehicleDialogState extends ConsumerState<VehicleDialog> {
                 helper: '可留空',
                 child: TextFormField(
                   controller: _licensePlateController,
+                  maxLength: 20,
                   decoration: fieldDecoration(
                     icon: Icons.confirmation_number,
                     hint: '例如:京A88888',
@@ -239,6 +242,7 @@ class _VehicleDialogState extends ConsumerState<VehicleDialog> {
                 helper: '可留空',
                 child: TextFormField(
                   controller: _colorController,
+                  maxLength: 20,
                   decoration: fieldDecoration(
                     icon: Icons.color_lens,
                     hint: '例如:白色',

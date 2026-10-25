@@ -304,7 +304,12 @@ class ExportNotifier extends AutoDisposeNotifier<void> {
 
   // ==================== 导入 ====================
 
-  Future<ExportResult> importFromJson(WidgetRef ref) async {
+  /// 导入备份
+  ///
+  /// [overwrite] true = 覆盖式恢复（先清空现有数据再导入，符合「恢复」的直觉）
+  ///             false = 追加导入（保留现有数据，可能产生重复）
+  Future<ExportResult> importFromJson(WidgetRef ref,
+      {bool overwrite = false}) async {
     // ① 选文件
     final picked = await FilePicker.platform.pickFiles(
       type: FileType.custom,
@@ -317,6 +322,19 @@ class ExportNotifier extends AutoDisposeNotifier<void> {
     final filePath = picked.files.single.path;
     if (filePath == null) {
       return ExportResult(success: false, message: '无法读取文件路径');
+    }
+
+    // 大小上限：readAsString 会把文件转成 UTF-16 字符串（约 ×2），
+    // jsonDecode 再建一整棵对象树（约 ×5~10），全程在 UI isolate。
+    // 一个 100MB 的 JSON 轻松吃掉 1GB 内存，中低端机直接 OOM。
+    const maxImportBytes = 15 * 1024 * 1024; // 15MB，够存几十万条记录
+    final fileSize = picked.files.single.size;
+    if (fileSize > maxImportBytes) {
+      return ExportResult(
+        success: false,
+        message: '文件太大（${(fileSize / 1024 / 1024).toStringAsFixed(1)} MB），'
+            '上限 15 MB。请确认选的是不是智记能耗的备份文件。',
+      );
     }
 
     // ② 解析并校验格式（不合法直接返回，不碰数据库）
@@ -354,8 +372,15 @@ class ExportNotifier extends AutoDisposeNotifier<void> {
     final db = ref.read(databaseProvider);
     try {
       final counts = await db.transaction(() async {
-        // 导入前先清空默认车标记，避免导入后出现多个「默认车」
-        await db.clearAllDefaultVehicles();
+        if (overwrite) {
+          // 覆盖式恢复：先清空三张表（同一事务，失败整体回滚）
+          await db.deleteAllExpenses();
+          await db.deleteAllEnergyRecords();
+          await db.deleteAllVehicles();
+        } else {
+          // 追加模式：只清默认车标记，避免导入后出现多个「默认车」
+          await db.clearAllDefaultVehicles();
+        }
         return isV2
             ? await _importV2(db, data)
             : await _importV1(db, data);
@@ -367,7 +392,8 @@ class ExportNotifier extends AutoDisposeNotifier<void> {
 
       return ExportResult(
         success: true,
-        message: '导入完成\n车辆 ${counts.$1} 辆 · 能源记录 ${counts.$2} 条 · '
+        message: '${overwrite ? "覆盖式恢复完成" : "追加导入完成"}\n'
+            '车辆 ${counts.$1} 辆 · 能源记录 ${counts.$2} 条 · '
             '支出 ${counts.$3} 条$backupNote',
         filePath: preBackupPath,
       );
@@ -478,8 +504,10 @@ class ExportNotifier extends AutoDisposeNotifier<void> {
         vehicleType: Value(v['vehicle_type'] as String?),
         isDefault: Value(v['is_default'] as bool? ?? false),
         energyType: Value(v['energy_type'] as String? ?? EnergyTypes.gasoline),
-        createdAt: Value(_parseMs(v['created_at'])),
-        updatedAt: Value(_parseMs(v['updated_at'])),
+        createdAt: Value(_parseMs(v['created_at']) ??
+            DateTime.now().millisecondsSinceEpoch),
+        updatedAt: Value(_parseMs(v['updated_at']) ??
+            DateTime.now().millisecondsSinceEpoch),
       ));
       if (oldId != null) idMap[oldId] = newId;
       vehicleCount++;
@@ -491,11 +519,14 @@ class ExportNotifier extends AutoDisposeNotifier<void> {
       final newVid = oldVid == null ? null : idMap[oldVid];
       if (newVid == null) continue; // 找不到归属车辆就跳过，不写脏数据
 
+      final recordDate = _parseMs(r['date']);
+      if (recordDate == null) continue; // 日期非法 -> 跳过这条，不写脏数据
+
       await db.insertEnergyRecord(EnergyRecordsCompanion(
         vehicleId: Value(newVid),
         // 白名单：只接受 gasoline / electric，其余一律按 gasoline（防手改备份导致记录消失）
         energyType: Value(_normalizeEnergyType(r['energy_type'])),
-        date: Value(_parseMs(r['date'])),
+        date: Value(recordDate),
         quantity: Value(_toDouble(r['quantity'])),
         amount: Value(_toDouble(r['amount'])),
         discount: Value(_toDouble(r['discount'])),  // 老备份没有这列 -> 0
@@ -507,7 +538,7 @@ class ExportNotifier extends AutoDisposeNotifier<void> {
         chargeMethod: Value(r['charge_method'] as String?),
         stationName: Value(r['station_name'] as String?),
         notes: Value(r['notes'] as String?),
-        createdAt: Value(_parseMs(r['created_at'])),
+        createdAt: Value(_parseMs(r['created_at']) ?? recordDate),
       ));
       recordCount++;
     }
@@ -518,16 +549,19 @@ class ExportNotifier extends AutoDisposeNotifier<void> {
       final newVid = oldVid == null ? null : idMap[oldVid];
       if (newVid == null) continue;
 
+      final expenseDate = _parseMs(e['date']);
+      if (expenseDate == null) continue; // 日期非法 -> 跳过
+
       await db.insertExpense(ExpensesCompanion(
         vehicleId: Value(newVid),
-        date: Value(_parseMs(e['date'])),
+        date: Value(expenseDate),
         kind: Value(e['kind'] as String? ?? ExpenseKinds.other),
         category: Value(e['category'] as String? ?? '其他'),
         items: Value(e['items'] as String?),
         mileage: Value((e['mileage'] as num?)?.toDouble()),
         amount: Value(_toDouble(e['amount'])),
         notes: Value(e['notes'] as String?),
-        createdAt: Value(_parseMs(e['created_at'])),
+        createdAt: Value(_parseMs(e['created_at']) ?? expenseDate),
       ));
       expenseCount++;
     }
@@ -561,8 +595,10 @@ class ExportNotifier extends AutoDisposeNotifier<void> {
         // V1 不存默认车标记：把第一辆设为默认，避免全部都不是默认
         isDefault: Value(first),
         energyType: const Value(EnergyTypes.gasoline),
-        createdAt: Value(_parseMs(v['createdAt'])),
-        updatedAt: Value(_parseMs(v['updatedAt'])),
+        createdAt: Value(_parseMs(v['createdAt']) ??
+            DateTime.now().millisecondsSinceEpoch),
+        updatedAt: Value(_parseMs(v['updatedAt']) ??
+            DateTime.now().millisecondsSinceEpoch),
       ));
       first = false;
       vehicleCount++;
@@ -572,10 +608,13 @@ class ExportNotifier extends AutoDisposeNotifier<void> {
 
       for (final rr in records) {
         final r = rr as Map<String, dynamic>;
+        final recordDate = _parseMs(r['date']);
+        if (recordDate == null) continue; // 日期非法 -> 跳过
+
         await db.insertEnergyRecord(EnergyRecordsCompanion(
           vehicleId: Value(newId),
           energyType: const Value(EnergyTypes.gasoline),
-          date: Value(_parseMs(r['date'])),
+          date: Value(recordDate),
           // 键名映射：fuelAmount → quantity，其余同理
           quantity: Value(_toDouble(r['fuelAmount'])),
           amount: Value(_toDouble(r['totalPrice'])),
@@ -586,7 +625,7 @@ class ExportNotifier extends AutoDisposeNotifier<void> {
           fuelType: Value(r['fuelType'] as String?),
           stationName: Value(r['stationName'] as String?),
           notes: Value(r['notes'] as String?),
-          createdAt: Value(_parseMs(r['createdAt'])),
+          createdAt: Value(_parseMs(r['createdAt']) ?? recordDate),
         ));
         recordCount++;
       }
@@ -627,13 +666,23 @@ class ExportNotifier extends AutoDisposeNotifier<void> {
     return 0;
   }
 
-  int _parseMs(dynamic v) {
-    if (v is num) return v.toInt();
-    if (v is String) {
+  /// 日期校验：非法就返回 null，由调用方跳过这条记录
+  ///
+  /// 之前是「解析失败就用当前时间」，等于把脏数据悄悄改成"今天"，更隐蔽。
+  int? _parseMs(dynamic v) {
+    int? ms;
+    if (v is num) {
+      ms = v.toInt();
+    } else if (v is String) {
       final dt = DateTime.tryParse(v);
-      if (dt != null) return dt.millisecondsSinceEpoch;
+      ms = dt?.millisecondsSinceEpoch;
     }
-    return DateTime.now().millisecondsSinceEpoch;
+    if (ms == null) return null;
+    // Dart 的 DateTime 只支持 ±8.64e15 毫秒；顺带限制在 2000~2100 年
+    if (ms.abs() > 8640000000000000) return null;
+    final year = DateTime.fromMillisecondsSinceEpoch(ms).year;
+    if (year < 2000 || year > 2100) return null;
+    return ms;
   }
 
   String _fmtDate(DateTime d) =>

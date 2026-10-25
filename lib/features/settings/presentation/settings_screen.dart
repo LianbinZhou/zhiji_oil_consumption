@@ -353,9 +353,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       const SnackBar(content: Text('正在导出数据...')),
     );
     
-    // 执行导出
-    final result = await ref.read(exportProvider.notifier).exportToJson(ref);
-    
+    // 执行导出（整条链路都要兜住：数据读取、JSON 编码、写文件任一环节抛异常，
+    // 用户都不能只看到一句"正在导出..."然后永远等下去）
+    ExportResult result;
+    try {
+      result = await ref.read(exportProvider.notifier).exportToJson(ref);
+    } catch (e) {
+      result = ExportResult(success: false, message: '导出失败：$e');
+    }
+
     if (context.mounted) {
       // 显示结果
       ScaffoldMessenger.of(context).showSnackBar(
@@ -368,6 +374,48 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   /// 导入JSON备份
+  /// 导入前先让用户选模式（覆盖 / 追加）
+  Future<bool?> _askImportMode(BuildContext context) async {
+    return showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('怎么导入？'),
+        content: const Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('覆盖式恢复',
+                style: TextStyle(fontWeight: FontWeight.bold)),
+            SizedBox(height: 2),
+            Text('先清空现有车辆和记录，再把备份写进去。'
+                '适合换手机/重装后恢复。', style: TextStyle(fontSize: 13)),
+            SizedBox(height: 14),
+            Text('追加导入',
+                style: TextStyle(fontWeight: FontWeight.bold)),
+            SizedBox(height: 2),
+            Text('保留现有数据，把备份里的一起加进来。'
+                '注意：同一份备份导两次会出现重复记录。',
+                style: TextStyle(fontSize: 13)),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(null),
+            child: const Text('取消'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('追加导入'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('覆盖式恢复'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _importJson(BuildContext context, WidgetRef ref) async {
     // 确认对话框
     final confirmed = await showDialog<bool>(
@@ -401,7 +449,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
     
     // 执行导入
-    final result = await ref.read(exportProvider.notifier).importFromJson(ref);
+    // 先问用户：覆盖式恢复还是追加导入
+    final overwrite = await _askImportMode(context);
+    if (overwrite == null) return; // 用户取消
+
+    final result = await ref
+        .read(exportProvider.notifier)
+        .importFromJson(ref, overwrite: overwrite);
     
     if (context.mounted) {
       // 显示结果

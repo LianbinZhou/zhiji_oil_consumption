@@ -183,16 +183,32 @@ class AppDatabase extends _$AppDatabase {
     return into(vehicles).insert(vehicle);
   }
 
-  Future<bool> updateVehicle(VehiclesCompanion vehicle) {
-    return update(vehicles).replace(vehicle);
+  /// 更新车辆
+  ///
+  /// 用 write 而不是 replace：Drift 的 replace 语义是 INSERT OR REPLACE，
+  /// 会给"没出现在 companion 里"的列**补默认值**——energy_type 的默认值是 gasoline，
+  /// 于是"只改 is_default"会把纯电/混动车悄悄改成油车（P0-2）。
+  Future<bool> updateVehicle(VehiclesCompanion vehicle) async {
+    if (!vehicle.id.present) {
+      throw ArgumentError('updateVehicle 需要带 id');
+    }
+    final n = await (update(vehicles)
+          ..where((t) => t.id.equals(vehicle.id.value)))
+        .write(vehicle);
+    return n > 0;
   }
 
+  /// 删除车辆（连同它的记录和支出）
+  ///
+  /// 三条 DELETE 必须原子：中途被杀进程会变成「记录没了、车还在」，
+  /// 用户会以为数据莫名其妙少了一半。
   Future<bool> deleteVehicle(int id) async {
-    // 先清掉这辆车的记录与支出，避免留下孤儿数据
-    await (delete(energyRecords)..where((t) => t.vehicleId.equals(id))).go();
-    await (delete(expenses)..where((t) => t.vehicleId.equals(id))).go();
-    final n = await (delete(vehicles)..where((t) => t.id.equals(id))).go();
-    return n > 0;
+    return transaction(() async {
+      await (delete(energyRecords)..where((t) => t.vehicleId.equals(id))).go();
+      await (delete(expenses)..where((t) => t.vehicleId.equals(id))).go();
+      final n = await (delete(vehicles)..where((t) => t.id.equals(id))).go();
+      return n > 0;
+    });
   }
 
   Future<int> getVehicleCount() async {
