@@ -638,7 +638,7 @@ class DashboardScreen extends ConsumerWidget {
                       context,
                       '最近记录',
                       overview.lastFuelDate != null
-                          ? '${overview.lastFuelDate!.month}/${overview.lastFuelDate!.day}'
+                          ? '${overview.lastFuelDate!.year}/${overview.lastFuelDate!.month.toString().padLeft(2, '0')}/${overview.lastFuelDate!.day.toString().padLeft(2, '0')}'
                           : '-',
                     ),
                     _buildVehicleStatDivider(context),
@@ -652,7 +652,7 @@ class DashboardScreen extends ConsumerWidget {
                     _buildVehicleStatDivider(context),
                     _buildVehicleStat(
                       context,
-                      '油耗',
+                      '平均油耗',
                       overview.recentFuelConsumption != null
                           ? '${UnitConverter.consumption(overview.recentFuelConsumption!, settings.distanceUnit).toStringAsFixed(1)}${UnitConverter.consumptionLabel('gasoline', settings.distanceUnit)}'
                           : '-',
