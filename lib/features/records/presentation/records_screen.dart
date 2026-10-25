@@ -132,7 +132,9 @@ class RecordsScreen extends ConsumerWidget {
         color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(14),
       ),
-      child: Row(
+      child: Column(
+        children: [
+          Row(
         children: [
           _buildMiniStat(context, '${records.length}', '记录数'),
           _buildMiniStatDivider(context),
@@ -152,6 +154,23 @@ class RecordsScreen extends ConsumerWidget {
             _buildMiniStat(
                 context, '¥${avgPrice.toStringAsFixed(2)}', _avgPriceLabel(vehicle)),
           ],
+        ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.swipe_left,
+                  size: 12,
+                  color: Theme.of(context).colorScheme.outline),
+              const SizedBox(width: 4),
+              Text('左滑记录可删除',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: Theme.of(context).colorScheme.outline,
+                  )),
+            ],
+          ),
         ],
       ),
     );
@@ -286,8 +305,61 @@ class RecordsScreen extends ConsumerWidget {
       itemCount: records.length,
       itemBuilder: (context, index) {
         final record = records[index];
-        return _buildRecordCard(
-            context, ref, record, consumptionById[record.id]);
+        // 左滑删除：卡片往左拖会露出红色删除区，松手前弹确认
+        return Dismissible(
+          key: ValueKey('energy_record_${record.id}'),
+          direction: DismissDirection.endToStart,
+          background: Container(
+            margin: const EdgeInsets.only(bottom: 10),
+            padding: const EdgeInsets.only(right: 24),
+            alignment: Alignment.centerRight,
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.error,
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: const Icon(Icons.delete_outline,
+                color: Colors.white, size: 26),
+          ),
+          confirmDismiss: (_) async {
+            final ok = await showDialog<bool>(
+              context: context,
+              builder: (ctx) => AlertDialog(
+                title: const Text('删除这条记录？'),
+                content: Text(
+                  '${record.date.year}/${record.date.month.toString().padLeft(2, '0')}/${record.date.day.toString().padLeft(2, '0')}  '
+                  '${record.fuelAmount.toStringAsFixed(1)}${record.energyType == 'electric' ? 'kWh' : 'L'}  '
+                  '¥${record.totalPrice.toStringAsFixed(0)}\n\n删除后无法恢复。',
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.of(ctx).pop(false),
+                    child: const Text('取消'),
+                  ),
+                  FilledButton(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: Theme.of(ctx).colorScheme.error,
+                    ),
+                    onPressed: () => Navigator.of(ctx).pop(true),
+                    child: const Text('删除'),
+                  ),
+                ],
+              ),
+            );
+            return ok ?? false;
+          },
+          onDismissed: (_) async {
+            await ref
+                .read(recordsNotifierProvider.notifier)
+                .deleteRecord(record.id);
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('记录已删除')),
+              );
+            }
+          },
+          child: _buildRecordCard(
+              context, ref, record, consumptionById[record.id]),
+        );
       },
     );
   }
