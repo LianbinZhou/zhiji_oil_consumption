@@ -2,7 +2,7 @@
   "string": [
     {
       "name": "module_desc",
-      "value": "智记油耗 - 车辆油耗管理"
+      "value": "智记能耗 - 车辆油耗管理"
     },
     {
       "name": "EntryAbility_desc",
@@ -10,7 +10,7 @@
     },
     {
       "name": "EntryAbility_label",
-      "value": "智记油耗"
+      "value": "智记能耗"
     }
   ]
 }

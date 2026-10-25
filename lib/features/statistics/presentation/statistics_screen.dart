@@ -1,4 +1,4 @@
-// 智记油耗 - 统计图表页面
+// 智记能耗 - 统计图表页面
 // 展示车辆的总体/月度/年度油耗统计数据和图表
 
 import 'package:flutter/material.dart';
@@ -7,6 +7,8 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:go_router/go_router.dart';
 
 import '../providers/statistics_provider.dart';
+import '../../settings/providers/settings_provider.dart';
+import '../../../shared/utils/unit_converter.dart';
 import '../../vehicles/providers/vehicles_provider.dart';
 
 class StatisticsScreen extends ConsumerWidget {
@@ -75,7 +77,7 @@ class StatisticsScreen extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildOverallStatsCard(context, stats),
+                  _buildOverallStatsCard(context, ref, stats),
 
                   // 年度统计（柱状图 + 汇总表）
                   yearlyStats.when(
@@ -86,7 +88,7 @@ class StatisticsScreen extends ConsumerWidget {
                           const SizedBox(height: 16),
                           _buildYearlyBarChart(context, yearlyList),
                           const SizedBox(height: 16),
-                          _buildYearlySummaryTable(context, yearlyList),
+                          _buildYearlySummaryTable(context, ref, yearlyList),
                         ],
                       );
                     },
@@ -151,7 +153,7 @@ class StatisticsScreen extends ConsumerWidget {
               ),
               const SizedBox(height: 8),
               Text(
-                '请先添加加油记录',
+                '请先添加能耗记录',
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                   color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
@@ -164,7 +166,9 @@ class StatisticsScreen extends ConsumerWidget {
   }
 
   // ==================== 总体统计卡片 ====================
-  Widget _buildOverallStatsCard(BuildContext context, OverallStats stats) {
+  Widget _buildOverallStatsCard(
+      BuildContext context, WidgetRef ref, OverallStats stats) {
+    final settings = ref.watch(settingsProvider).settings;
     return Card(
       elevation: 1,
       child: Padding(
@@ -180,6 +184,42 @@ class StatisticsScreen extends ConsumerWidget {
               ],
             ),
             const Divider(),
+
+            // ===== 全部花费（能源 + 保养 + 费用）=====
+            Container(
+              width: double.infinity,
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              decoration: BoxDecoration(
+                color: Theme.of(context)
+                    .colorScheme
+                    .primaryContainer
+                    .withValues(alpha: 0.45),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('全部花费',
+                      style: Theme.of(context).textTheme.bodyMedium),
+                  const SizedBox(height: 4),
+                  Text(
+                    '¥${_formatMoney(stats.totalCostAll)}',
+                    style: Theme.of(context)
+                        .textTheme
+                        .headlineMedium
+                        ?.copyWith(fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    '能源 ¥${_formatMoney(stats.totalCost)}'
+                    ' · 保养/费用 ¥${_formatMoney(stats.expenseCost)}',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ],
+              ),
+            ),
+
             GridView.count(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
@@ -189,13 +229,15 @@ class StatisticsScreen extends ConsumerWidget {
               crossAxisSpacing: 8,
               children: [
                 _buildStatItem(context, '总记录数', '${stats.totalRecords}条', Icons.receipt_long, null),
-                _buildStatItem(context, '总花费', '¥${_formatMoney(stats.totalCost)}', Icons.attach_money, const Color(0xFFEF5350)),
-                _buildStatItem(context, '总加油量', '${stats.totalFuel.toStringAsFixed(0)}L', Icons.local_gas_station, const Color(0xFF42A5F5)),
+                _buildStatItem(context, '能源花费', '¥${_formatMoney(stats.totalCost)}', Icons.attach_money, const Color(0xFFEF5350)),
+                _buildStatItem(context, '总加油量', '${UnitConverter.volume(stats.totalFuel, settings.fuelUnit).toStringAsFixed(0)}${UnitConverter.volumeSymbol(settings.fuelUnit)}', Icons.local_gas_station, const Color(0xFF42A5F5)),
                 _buildStatItem(
                   context,
-                  '平均油耗',
+                  stats.consumptionMethod == null
+                      ? '平均油耗'
+                      : '油耗·${stats.consumptionMethod == 'full' ? '加满法' : '亮灯法'}',
                   stats.averageFuelConsumption != null
-                      ? '${stats.averageFuelConsumption!.toStringAsFixed(2)}L/100km'
+                      ? '${UnitConverter.consumption(stats.averageFuelConsumption!, settings.distanceUnit).toStringAsFixed(2)}${UnitConverter.consumptionLabel('gasoline', settings.distanceUnit)}'
                       : '--',
                   Icons.speed,
                   stats.averageFuelConsumption != null
@@ -211,6 +253,14 @@ class StatisticsScreen extends ConsumerWidget {
                   Icons.money,
                   const Color(0xFFFFA726),
                 ),
+                if (stats.avgElectricConsumption != null)
+                  _buildStatItem(
+                    context,
+                    '电耗·充满法',
+                    '${UnitConverter.consumption(stats.avgElectricConsumption!, settings.distanceUnit, isElectric: true).toStringAsFixed(1)}${UnitConverter.consumptionLabel('electric', settings.distanceUnit)}',
+                    Icons.battery_charging_full,
+                    const Color(0xFF2EC4B6),
+                  ),
                 _buildStatItem(context, '最高单次', '¥${_formatMoney(stats.maxSingleCost)}', Icons.trending_up, const Color(0xFFAB47BC)),
               ],
             ),
@@ -435,7 +485,9 @@ class StatisticsScreen extends ConsumerWidget {
   }
 
   // ==================== 年度汇总表 ====================
-  Widget _buildYearlySummaryTable(BuildContext context, List<YearlyStats> yearlyList) {
+  Widget _buildYearlySummaryTable(
+      BuildContext context, WidgetRef ref, List<YearlyStats> yearlyList) {
+    final settings = ref.watch(settingsProvider).settings;
     final sorted = List<YearlyStats>.from(yearlyList)
       ..sort((a, b) => b.year.compareTo(a.year));
 
@@ -473,7 +525,7 @@ class StatisticsScreen extends ConsumerWidget {
                   return DataRow(cells: [
                     DataCell(Text('${y.year}年', style: const TextStyle(fontWeight: FontWeight.w500))),
                     DataCell(Text('¥${_formatMoney(y.totalCost)}')),
-                    DataCell(Text('${y.totalFuel.toStringAsFixed(0)}L')),
+                    DataCell(Text('${UnitConverter.volume(y.totalFuel, settings.fuelUnit).toStringAsFixed(0)}${UnitConverter.volumeSymbol(settings.fuelUnit)}')),
                     DataCell(Text(
                       y.averageFuelConsumption != null
                           ? '${y.averageFuelConsumption!.toStringAsFixed(1)}L'
@@ -516,7 +568,7 @@ class StatisticsScreen extends ConsumerWidget {
                 Text('月度油耗趋势', style: Theme.of(context).textTheme.titleMedium),
               ]),
               const SizedBox(height: 24),
-              Text('${_formatMonth(m.yearMonth)}', style: Theme.of(context).textTheme.bodyLarge),
+              Text(_formatMonth(m.yearMonth), style: Theme.of(context).textTheme.bodyLarge),
               const SizedBox(height: 4),
               Text('${m.averageFuelConsumption!.toStringAsFixed(1)} L/100km', style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold, color: _getFuelConsumptionColor(m.averageFuelConsumption!))),
             ],
@@ -711,7 +763,7 @@ class StatisticsScreen extends ConsumerWidget {
                 Text('月度费用分布', style: Theme.of(context).textTheme.titleMedium),
               ]),
               const SizedBox(height: 24),
-              Text('${item.name}', style: Theme.of(context).textTheme.bodyLarge),
+              Text(item.name, style: Theme.of(context).textTheme.bodyLarge),
               const SizedBox(height: 4),
               Text('¥${item.value.toStringAsFixed(0)}', style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.primary)),
             ],

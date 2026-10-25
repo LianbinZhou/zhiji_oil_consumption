@@ -3,6 +3,14 @@
 
 include: package:flutter_lints/flutter.yaml
 
+# 生成文件不参与检查
+# （app_database.g.dart 由 build_runner 生成，里面的 unused_element /
+#   unnecessary_null_comparison 无法手改，也没意义）
+# 排除之后 `flutter analyze` 才会以 0 退出，打包脚本的硬闸才有意义。
+analyzer:
+  exclude:
+    - "**/*.g.dart"
+
 # 自定义lint规则
 linter:
   rules:

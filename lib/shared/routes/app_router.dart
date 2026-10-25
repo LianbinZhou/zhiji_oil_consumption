@@ -1,4 +1,4 @@
-// 智记油耗 - 路由配置文件
+// 智记能耗 - 路由配置文件
 // 使用go_router + ShellRoute实现底部导航栏
 
 import 'package:flutter/material.dart';
@@ -120,7 +120,7 @@ class _MainScaffold extends StatelessWidget {
         decoration: BoxDecoration(
           border: Border(
             top: BorderSide(
-              color: Theme.of(context).colorScheme.outlineVariant.withOpacity(0.3),
+              color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.3),
               width: 0.5,
             ),
           ),

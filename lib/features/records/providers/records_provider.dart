@@ -1,4 +1,4 @@
-// 智记油耗 - 油耗记录Provider
+// 智记能耗 - 油耗记录Provider
 // 这个文件使用Riverpod管理油耗记录的业务逻辑
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -13,17 +13,19 @@ import '../../../data/models/fuel_record.dart' as model;
 // ==================== 数据转换辅助函数 ====================
 
 /// 将Drift的FuelRecord转换为自定义model.FuelRecordModel
-model.FuelRecordModel _convertFuelRecord(FuelRecord data) {
+model.FuelRecordModel _convertFuelRecord(EnergyRecord data) {
   return model.FuelRecordModel(
     id: data.id,
     vehicleId: data.vehicleId,
     date: DateTime.fromMillisecondsSinceEpoch(data.date),
-    fuelAmount: data.fuelAmount,
-    totalPrice: data.totalPrice,
-    pricePerLiter: data.pricePerLiter,
+    fuelAmount: data.quantity,
+    totalPrice: data.amount,
+    pricePerLiter: data.unitPrice,
     odometer: data.odometer,
-    isFullTank: data.isFullTank,
+    isFullTank: data.isFull,
     isLightOn: data.isLightOn,
+    energyType: data.energyType,
+    chargeMethod: data.chargeMethod,
     fuelType: data.fuelType,
     stationName: data.stationName,
     notes: data.notes,
@@ -41,7 +43,7 @@ final recordsStreamProvider = StreamProvider.family<List<model.FuelRecordModel>,
   final database = ref.watch(databaseProvider);
   
   // 获取Drift原生类型的Stream,然后转换为自定义模型
-  return database.watchFuelRecordsForVehicleNative(vehicleId).map((records) {
+  return database.watchEnergyRecordsForVehicle(vehicleId).map((records) {
     return records.map(_convertFuelRecord).toList();
   });
 });
@@ -51,7 +53,7 @@ final recordsStreamProvider = StreamProvider.family<List<model.FuelRecordModel>,
 /// 获取某辆车的最新一条油耗记录
 final latestRecordProvider = FutureProvider.family<model.FuelRecordModel?, int>((ref, vehicleId) async {
   final database = ref.watch(databaseProvider);
-  final record = await database.getLatestFuelRecord(vehicleId);
+  final record = await database.getLatestEnergyRecord(vehicleId);
   return record != null ? _convertFuelRecord(record) : null;
 });
 
@@ -75,27 +77,31 @@ class RecordsNotifier extends AutoDisposeNotifier<List<model.FuelRecordModel>> {
     required bool isFullTank,
     bool isLightOn = false,
     String? fuelType,
+    String? chargeMethod,
+    String energyType = 'gasoline',
     String? stationName,
     String? notes,
   }) async {
     final database = ref.read(databaseProvider);
     
-    final record = FuelRecordsCompanion(
+    final record = EnergyRecordsCompanion(
       vehicleId: drift.Value(vehicleId),
       date: drift.Value(date.millisecondsSinceEpoch),
-      fuelAmount: drift.Value(fuelAmount),
-      totalPrice: drift.Value(totalPrice),
-      pricePerLiter: drift.Value(pricePerLiter),
+      quantity: drift.Value(fuelAmount),
+      amount: drift.Value(totalPrice),
+      unitPrice: drift.Value(pricePerLiter),
       odometer: drift.Value(odometer),
-      isFullTank: drift.Value(isFullTank),
+      isFull: drift.Value(isFullTank),
       isLightOn: drift.Value(isLightOn),
       fuelType: drift.Value(fuelType),
+      chargeMethod: drift.Value(chargeMethod),
+      energyType: drift.Value(energyType),
       stationName: drift.Value(stationName),
       notes: drift.Value(notes),
       createdAt: drift.Value(DateTime.now().millisecondsSinceEpoch),
     );
     
-    await database.insertFuelRecord(record);
+    await database.insertEnergyRecord(record);
   }
 
   /// 更新油耗记录
@@ -110,35 +116,38 @@ class RecordsNotifier extends AutoDisposeNotifier<List<model.FuelRecordModel>> {
     required bool isFullTank,
     bool isLightOn = false,
     String? fuelType,
+    String? chargeMethod,
+    String energyType = 'gasoline',
     String? stationName,
     String? notes,
   }) async {
     final database = ref.read(databaseProvider);
     
-    final record = FuelRecordsCompanion(
+    final record = EnergyRecordsCompanion(
       id: drift.Value(id),
       vehicleId: drift.Value(vehicleId),
       date: drift.Value(date.millisecondsSinceEpoch),
-      fuelAmount: drift.Value(fuelAmount),
-      totalPrice: drift.Value(totalPrice),
-      pricePerLiter: drift.Value(pricePerLiter),
+      quantity: drift.Value(fuelAmount),
+      amount: drift.Value(totalPrice),
+      unitPrice: drift.Value(pricePerLiter),
       odometer: drift.Value(odometer),
-      isFullTank: drift.Value(isFullTank),
+      isFull: drift.Value(isFullTank),
       isLightOn: drift.Value(isLightOn),
       fuelType: drift.Value(fuelType),
+      chargeMethod: drift.Value(chargeMethod),
+      energyType: drift.Value(energyType),
       stationName: drift.Value(stationName),
       notes: drift.Value(notes),
-      createdAt: drift.Value(DateTime.now().millisecondsSinceEpoch),
     );
     
-    await database.updateFuelRecord(record);
+    await database.updateEnergyRecord(record);
   }
 
   /// 删除油耗记录
   Future<void> deleteRecord(int id) async {
     final database = ref.read(databaseProvider);
     
-    final success = await database.deleteFuelRecord(id);
+    final success = await database.deleteEnergyRecord(id);
     
     if (!success) {
       throw Exception('删除失败');

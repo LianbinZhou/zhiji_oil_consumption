@@ -1,9 +1,11 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:drift/drift.dart' as drift;
 import '../../../data/database/app_database.dart';
 import '../../../data/models/vehicle.dart' as model;
 import '../../../data/models/fuel_record.dart' as model_record;
 import '../../vehicles/providers/vehicles_provider.dart';
+import '../../statistics/providers/statistics_provider.dart'
+    show weightedConsumption, consumptionDetail;
+import '../../../data/database/tables.dart' show EnergyTypes;
 
 class VehicleOverview {
   final model.Vehicle vehicle;
@@ -39,17 +41,19 @@ class DashboardSummary {
   });
 }
 
-model_record.FuelRecordModel _convertFuelRecord(FuelRecord data) {
+model_record.FuelRecordModel _convertFuelRecord(EnergyRecord data) {
   return model_record.FuelRecordModel(
     id: data.id,
     vehicleId: data.vehicleId,
     date: DateTime.fromMillisecondsSinceEpoch(data.date),
-    fuelAmount: data.fuelAmount,
-    totalPrice: data.totalPrice,
-    pricePerLiter: data.pricePerLiter,
+    fuelAmount: data.quantity,
+    totalPrice: data.amount,
+    pricePerLiter: data.unitPrice,
     odometer: data.odometer,
-    isFullTank: data.isFullTank,
+    isFullTank: data.isFull,
     isLightOn: data.isLightOn,
+    energyType: data.energyType,
+    chargeMethod: data.chargeMethod,
     fuelType: data.fuelType,
     stationName: data.stationName,
     notes: data.notes,
@@ -66,6 +70,7 @@ model.Vehicle _convertVehicle(Vehicle data) {
     color: data.color,
     notes: data.notes,
     vehicleType: data.vehicleType,
+    energyType: data.energyType,
     isDefault: data.isDefault,
     createdAt: DateTime.fromMillisecondsSinceEpoch(data.createdAt),
     updatedAt: DateTime.fromMillisecondsSinceEpoch(data.updatedAt),
@@ -75,7 +80,7 @@ model.Vehicle _convertVehicle(Vehicle data) {
 final dashboardSummaryProvider = FutureProvider<DashboardSummary?>((ref) async {
   try {
     final database = ref.watch(databaseProvider);
-    final vehiclesNative = await database.getAllVehiclesNative();
+    final vehiclesNative = await database.getAllVehicles();
 
     if (vehiclesNative.isEmpty) {
       return null;
@@ -87,22 +92,22 @@ final dashboardSummaryProvider = FutureProvider<DashboardSummary?>((ref) async {
     double monthlyTotalCost = 0;
     double monthlyTotalDistance = 0;
     int monthlyRecordCount = 0;
-    final List<double> fuelConsumptions = [];
+    // 跨车加权用的累加器（MI1：统一为总油量 ÷ 总里程）
+    double totalFuelQuantityForConsumption = 0;
+    double totalDistanceForConsumption = 0;
 
     for (final vehicle in vehiclesNative) {
       final v = _convertVehicle(vehicle);
-      List<model_record.FuelRecordModel> records;
+      List<EnergyRecord> recordsNative = [];
       try {
-        final recordsNative = await database.getFuelRecordsForVehicleNative(v.id);
-        records = recordsNative.map(_convertFuelRecord).toList();
+        recordsNative = await database.getEnergyRecordsForVehicle(v.id);
       } catch (_) {
-        records = [];
+        recordsNative = [];
       }
+      final records =
+          recordsNative.map(_convertFuelRecord).toList();
 
       if (records.isEmpty) continue;
-
-      final sortedRecords = List<model_record.FuelRecordModel>.from(records)
-        ..sort((a, b) => b.date.compareTo(a.date));
 
       for (final record in records) {
         final recordYearMonth = '${record.date.year}-${record.date.month.toString().padLeft(2, '0')}';
@@ -124,30 +129,29 @@ final dashboardSummaryProvider = FutureProvider<DashboardSummary?>((ref) async {
         }
       }
 
-      final fullTankRecords = sortedRecords.where((r) => r.isFullTank).toList();
-      if (fullTankRecords.length >= 2) {
-        double totalConsumption = 0;
-        int count = 0;
-
-        for (int i = 1; i < fullTankRecords.length; i++) {
-          final current = fullTankRecords[i];
-          final previous = fullTankRecords[i - 1];
-          final consumption = current.calculateFuelConsumption(previous.odometer);
-          if (consumption != null) {
-            totalConsumption += consumption;
-            count++;
-          }
-        }
-
-        if (count > 0) {
-          fuelConsumptions.add(totalConsumption / count);
-        }
+      // 与统计页同一个函数：区间求和 + 加权平均
+      final fuelOnly = recordsNative
+          .where((r) => r.energyType == EnergyTypes.gasoline)
+          .toList()
+        ..sort((a, b) {
+          final c = a.date.compareTo(b.date);
+          return c != 0 ? c : a.odometer.compareTo(b.odometer);
+        });
+      final detail = consumptionDetail(fuelOnly, useLightAnchor: false) ??
+          consumptionDetail(fuelOnly, useLightAnchor: true);
+      if (detail != null) {
+        totalFuelQuantityForConsumption += detail.quantity;
+        totalDistanceForConsumption += detail.distance;
       }
     }
 
+    // 跨车平均必须是「总油量 ÷ 总里程」，不能把各车平均值再平均
+    // （否则跑得少的车和跑得多的车权重相同，结果会偏）
     double? averageFuelConsumption;
-    if (fuelConsumptions.isNotEmpty) {
-      averageFuelConsumption = fuelConsumptions.reduce((a, b) => a + b) / fuelConsumptions.length;
+    if (totalFuelQuantityForConsumption > 0 &&
+        totalDistanceForConsumption > 0) {
+      averageFuelConsumption =
+          totalFuelQuantityForConsumption / totalDistanceForConsumption * 100;
     }
 
     return DashboardSummary(
@@ -165,7 +169,7 @@ final dashboardSummaryProvider = FutureProvider<DashboardSummary?>((ref) async {
 final vehicleOverviewsProvider = FutureProvider<List<VehicleOverview>>((ref) async {
   try {
     final database = ref.watch(databaseProvider);
-    final vehiclesNative = await database.getAllVehiclesNative();
+    final vehiclesNative = await database.getAllVehicles();
 
     if (vehiclesNative.isEmpty) {
       return [];
@@ -177,13 +181,14 @@ final vehicleOverviewsProvider = FutureProvider<List<VehicleOverview>>((ref) asy
 
     for (final vehicle in vehiclesNative) {
       final v = _convertVehicle(vehicle);
-      List<model_record.FuelRecordModel> records;
+      List<EnergyRecord> recordsNative = [];
       try {
-        final recordsNative = await database.getFuelRecordsForVehicleNative(v.id);
-        records = recordsNative.map(_convertFuelRecord).toList();
+        recordsNative = await database.getEnergyRecordsForVehicle(v.id);
       } catch (_) {
-        records = [];
+        recordsNative = [];
       }
+      final records =
+          recordsNative.map(_convertFuelRecord).toList();
 
       if (records.isEmpty) {
         overviews.add(VehicleOverview(
@@ -200,13 +205,19 @@ final vehicleOverviewsProvider = FutureProvider<List<VehicleOverview>>((ref) asy
       final lastFuelDate = sortedRecords.first.date;
       final lastOdometer = sortedRecords.first.odometer;
 
+      // 与统计页同一个函数（区间求和 + 加权平均）
       double? recentFuelConsumption;
-      final fullTankRecords = sortedRecords.where((r) => r.isFullTank).toList();
-      if (fullTankRecords.length >= 2) {
-        recentFuelConsumption = fullTankRecords[0].calculateFuelConsumption(
-          fullTankRecords[1].odometer,
-        );
-      }
+      final fuelOnly = recordsNative
+          .where((r) => r.energyType == EnergyTypes.gasoline)
+          .toList()
+        ..sort((a, b) {
+          final c = a.date.compareTo(b.date);
+          return c != 0 ? c : a.odometer.compareTo(b.odometer);
+        });
+      recentFuelConsumption =
+          weightedConsumption(fuelOnly, useLightAnchor: false);
+      recentFuelConsumption ??=
+          weightedConsumption(fuelOnly, useLightAnchor: true);
 
       double monthlyCost = 0;
       for (final record in records) {

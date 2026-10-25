@@ -1,37 +1,31 @@
-// 智记油耗 - Drift数据库主类
-// 这个文件创建数据库实例,并提供所有数据操作方法
+// 智记能耗 - Drift 数据库主类（v4）
+// 负责：数据库实例、schema 迁移、所有数据操作方法
+//
+// 2026-10-25 升级到 v4：
+//   - fuel_records → energy_records（4 列改名 + 2 列新增）
+//   - vehicles 新增 energy_type
+//   - 新增 expenses 表
+//   - 迁移逻辑按"逐列 + 幂等"实现，且不再吞异常
 
 import 'dart:io';
 
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
-import 'package:sqlite3_flutter_libs/sqlite3_flutter_libs.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
 
-// 导入表定义
 import 'tables.dart';
 
-// 告诉Drift要生成哪些代码
 part 'app_database.g.dart';
 
 /// 应用数据库类
-/// 
-/// 这个类管理整个应用的数据库连接
-/// 使用@DriftDatabase注解指定要包含的表
-@DriftDatabase(tables: [Vehicles, FuelRecords])
+@DriftDatabase(tables: [Vehicles, EnergyRecords, Expenses])
 class AppDatabase extends _$AppDatabase {
-  /// 构造函数
-  /// 
-  /// [e] 是查询执行器,负责实际执行SQL语句
-  AppDatabase(QueryExecutor e) : super(e);
+  AppDatabase(super.e);
 
-  /// 获取数据库版本
-  /// 用于数据库迁移(后续升级时使用)
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
-  /// 数据库迁移策略
   @override
   MigrationStrategy get migration {
     return MigrationStrategy(
@@ -39,329 +33,465 @@ class AppDatabase extends _$AppDatabase {
         await m.createAll();
       },
       onUpgrade: (Migrator m, int from, int to) async {
-        if (from < 2) {
-          try {
-            await m.addColumn(fuelRecords, fuelRecords.isLightOn);
-          } catch (_) {}
-          try {
-            await m.addColumn(fuelRecords, fuelRecords.fuelType);
-          } catch (_) {}
-          try {
-            await m.addColumn(fuelRecords, fuelRecords.stationName);
-          } catch (_) {}
-        }
-        if (from < 3) {
-          // v3: schema alignment, no new columns added
+        if (from < 4) {
+          // 把整段迁移包进事务：SQLite 的 DDL 是事务性的，
+          // 这样"要么全改完、要么原样回滚"，不会留下半迁移状态
+          await transaction(() async {
+            await _migrateToV4();
+          });
         }
       },
     );
   }
 
-  // ==================== 车辆相关操作 ====================
+  // ==================== v3 → v4 迁移 ====================
 
-  /// 查询所有车辆(Drift原生类型)
-  /// 
-  /// 返回一个Stream,当数据库中的数据变化时会自动更新
-  Stream<List<Vehicle>> watchAllVehiclesNative() {
+  /// 逐列、幂等地把老库升到 v4
+  ///
+  /// 设计要点：
+  /// - 每一步都先检查现状，已做过就跳过（幂等），所以中途失败后重跑是安全的
+  /// - 不吞异常：任何一步失败都会抛出，由外层终止升级并提示用户
+  /// - 不能用 Drift 的 addColumn 做改名（那是"加新列"，旧数据留在旧列里）
+  Future<void> _migrateToV4() async {
+    // ① 老表还在 → 先补齐 v2 可能缺失的列，再改名
+    if (await _tableExists('fuel_records')) {
+      await _ensureColumn('fuel_records', 'is_light_on',
+          'INTEGER NOT NULL DEFAULT 0');
+      await _ensureColumn('fuel_records', 'fuel_type', 'TEXT');
+      await _ensureColumn('fuel_records', 'station_name', 'TEXT');
+      await customStatement(
+          'ALTER TABLE fuel_records RENAME TO energy_records');
+    }
+
+    // ② 四个列改名（幂等）
+    await _renameColumnIfExists('energy_records', 'fuel_amount', 'quantity');
+    await _renameColumnIfExists('energy_records', 'total_price', 'amount');
+    await _renameColumnIfExists(
+        'energy_records', 'price_per_liter', 'unit_price');
+    await _renameColumnIfExists('energy_records', 'is_full_tank', 'is_full');
+
+    // ③ 能源记录新增列
+    await _ensureColumn(
+        'energy_records', 'energy_type', "TEXT NOT NULL DEFAULT 'gasoline'");
+    await _ensureColumn('energy_records', 'charge_method', 'TEXT');
+
+    // ④ 车辆新增能源类型
+    await _ensureColumn(
+        'vehicles', 'energy_type', "TEXT NOT NULL DEFAULT 'gasoline'");
+
+    // ⑤ 新表 expenses
+    await customStatement('''
+      CREATE TABLE IF NOT EXISTS expenses (
+        id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+        vehicle_id INTEGER NOT NULL REFERENCES vehicles (id),
+        date INTEGER NOT NULL,
+        kind TEXT NOT NULL,
+        category TEXT NOT NULL,
+        items TEXT NULL,
+        mileage REAL NULL,
+        amount REAL NOT NULL,
+        notes TEXT NULL,
+        created_at INTEGER NOT NULL
+      )
+    ''');
+
+    // ⑥ 按所属车辆的类型回填历史记录的能源类型
+    await customStatement('''
+      UPDATE energy_records
+      SET energy_type = (
+        SELECT v.energy_type FROM vehicles v WHERE v.id = energy_records.vehicle_id
+      )
+      WHERE energy_type = 'gasoline'
+        AND EXISTS (SELECT 1 FROM vehicles v WHERE v.id = energy_records.vehicle_id
+                    AND v.energy_type IN ('gasoline', 'electric'))
+    ''');
+  }
+
+  /// 表是否存在
+  Future<bool> _tableExists(String name) async {
+    final rows = await customSelect(
+      "SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?",
+      variables: [Variable.withString(name)],
+    ).get();
+    return rows.isNotEmpty;
+  }
+
+  /// 取某张表的列名列表（表不存在时返回空）
+  Future<List<String>> _columnsOf(String table) async {
+    final rows = await customSelect('PRAGMA table_info($table)').get();
+    return rows.map((r) => r.read<String>('name')).toList();
+  }
+
+  /// 列不存在才加（幂等）
+  Future<void> _ensureColumn(
+      String table, String column, String definition) async {
+    final cols = await _columnsOf(table);
+    if (cols.isEmpty) return; // 表不存在，交给 createAll
+    if (cols.contains(column)) return;
+    await customStatement('ALTER TABLE $table ADD COLUMN $column $definition');
+  }
+
+  /// 列改名（已改过或本来就没有则跳过，幂等）
+  Future<void> _renameColumnIfExists(
+      String table, String oldName, String newName) async {
+    final cols = await _columnsOf(table);
+    if (cols.contains(newName)) return;
+    if (!cols.contains(oldName)) return;
+    await customStatement(
+        'ALTER TABLE $table RENAME COLUMN $oldName TO $newName');
+  }
+
+  // ==================== 车辆 ====================
+
+  Stream<List<Vehicle>> watchAllVehicles() {
     return (select(vehicles)..orderBy([(t) => OrderingTerm.desc(t.createdAt)]))
         .watch();
   }
 
-  /// 查询所有车辆(Drift原生类型,一次性获取)
-  Future<List<Vehicle>> getAllVehiclesNative() {
+  Future<List<Vehicle>> getAllVehicles() {
     return (select(vehicles)..orderBy([(t) => OrderingTerm.desc(t.createdAt)]))
         .get();
   }
 
-  /// 根据ID查询单个车辆(Drift原生类型)
-  Future<Vehicle?> getVehicleByIdNative(int id) {
+  Future<Vehicle?> getVehicleById(int id) {
     return (select(vehicles)..where((t) => t.id.equals(id)))
         .getSingleOrNull();
   }
 
-  /// 插入一辆新车
   Future<int> insertVehicle(VehiclesCompanion vehicle) {
     return into(vehicles).insert(vehicle);
   }
 
-  /// 更新车辆信息
   Future<bool> updateVehicle(VehiclesCompanion vehicle) {
     return update(vehicles).replace(vehicle);
   }
 
-  /// 删除车辆
-  Future<bool> deleteVehicle(int id) {
-    return (delete(vehicles)..where((t) => t.id.equals(id))).go().then(
-          (value) => value > 0,
-        );
+  Future<bool> deleteVehicle(int id) async {
+    // 先清掉这辆车的记录与支出，避免留下孤儿数据
+    await (delete(energyRecords)..where((t) => t.vehicleId.equals(id))).go();
+    await (delete(expenses)..where((t) => t.vehicleId.equals(id))).go();
+    final n = await (delete(vehicles)..where((t) => t.id.equals(id))).go();
+    return n > 0;
   }
 
-  /// 统计车辆总数
-  Future<int> getVehicleCount() {
-    return select(vehicles).get().then((list) => list.length);
+  Future<int> getVehicleCount() async {
+    final list = await select(vehicles).get();
+    return list.length;
   }
 
-  // ==================== 油耗记录相关操作 ====================
+  // ==================== 能源记录（加油 / 充电） ====================
 
-  /// 查询某辆车的所有油耗记录(Drift原生类型)
-  Stream<List<FuelRecord>> watchFuelRecordsForVehicleNative(int vehicleId) {
-    return (select(fuelRecords)
+  Stream<List<EnergyRecord>> watchEnergyRecordsForVehicle(int vehicleId) {
+    return (select(energyRecords)
           ..where((t) => t.vehicleId.equals(vehicleId))
-          ..orderBy([(t) => OrderingTerm.desc(t.date)]))
+          ..orderBy([
+            (t) => OrderingTerm.desc(t.date),
+            (t) => OrderingTerm.desc(t.odometer),
+            (t) => OrderingTerm.desc(t.id),
+          ]))
         .watch();
   }
 
-  /// 查询某辆车的所有油耗记录(一次性获取)
-  Future<List<FuelRecord>> getFuelRecordsForVehicleNative(int vehicleId) {
-    return (select(fuelRecords)
+  /// 按时间正序（旧 → 新）取全部记录，能耗算法需要这个顺序
+  Future<List<EnergyRecord>> getEnergyRecordsForVehicle(int vehicleId) {
+    return (select(energyRecords)
           ..where((t) => t.vehicleId.equals(vehicleId))
-          ..orderBy([(t) => OrderingTerm.desc(t.date)]))
+          ..orderBy([
+            (t) => OrderingTerm.asc(t.date),
+            (t) => OrderingTerm.asc(t.odometer),
+            (t) => OrderingTerm.asc(t.id),
+          ]))
         .get();
   }
 
-  /// 根据ID查询单条油耗记录
-  Future<FuelRecord?> getFuelRecordByIdNative(int id) {
-    return (select(fuelRecords)..where((t) => t.id.equals(id)))
+  Future<EnergyRecord?> getEnergyRecordById(int id) {
+    return (select(energyRecords)..where((t) => t.id.equals(id)))
         .getSingleOrNull();
   }
 
-  /// 插入一条油耗记录
-  Future<int> insertFuelRecord(FuelRecordsCompanion record) {
-    return into(fuelRecords).insert(record);
+  Future<int> insertEnergyRecord(EnergyRecordsCompanion record) {
+    return into(energyRecords).insert(record);
   }
 
-  /// 更新油耗记录
-  Future<bool> updateFuelRecord(FuelRecordsCompanion record) {
-    return update(fuelRecords).replace(record);
+  Future<bool> updateEnergyRecord(EnergyRecordsCompanion record) {
+    return update(energyRecords).replace(record);
   }
 
-  /// 删除一条油耗记录
-  Future<bool> deleteFuelRecord(int id) {
-    return (delete(fuelRecords)..where((t) => t.id.equals(id)))
-        .go()
-        .then((value) => value > 0);
+  Future<bool> deleteEnergyRecord(int id) async {
+    final n =
+        await (delete(energyRecords)..where((t) => t.id.equals(id))).go();
+    return n > 0;
   }
 
-  /// 统计某辆车的记录数
-  Future<int> getFuelRecordCount(int vehicleId) {
-    return (select(fuelRecords)..where((t) => t.vehicleId.equals(vehicleId)))
-        .get()
-        .then((list) => list.length);
+  Future<int> getEnergyRecordCount(int vehicleId) async {
+    final list = await (select(energyRecords)
+          ..where((t) => t.vehicleId.equals(vehicleId)))
+        .get();
+    return list.length;
   }
 
-  /// 获取某辆车的最新一条记录
-  Future<FuelRecord?> getLatestFuelRecord(int vehicleId) {
-    return (select(fuelRecords)
+  Future<EnergyRecord?> getLatestEnergyRecord(int vehicleId) {
+    return (select(energyRecords)
           ..where((t) => t.vehicleId.equals(vehicleId))
           ..orderBy([(t) => OrderingTerm.desc(t.date)])
           ..limit(1))
         .getSingleOrNull();
   }
 
-  // ==================== SQL聚合查询优化 ====================
+  // ==================== 其他支出（保养 / 费用） ====================
 
-  /// 计算某辆车某月的总花费（SQL聚合）
-  Future<double> getMonthlyTotalCost(int vehicleId, int year, int month) {
-    final startTimestamp = DateTime(year, month, 1).millisecondsSinceEpoch;
-    final endTimestamp = DateTime(year, month + 1, 1).millisecondsSinceEpoch;
-
-    final query = selectOnly(fuelRecords)
-      ..addColumns([fuelRecords.totalPrice.sum()])
-      ..where(fuelRecords.vehicleId.equals(vehicleId))
-      ..where(fuelRecords.date.isBiggerOrEqualValue(startTimestamp))
-      ..where(fuelRecords.date.isSmallerThanValue(endTimestamp));
-
-    return query.getSingle().then((row) => row.read(fuelRecords.totalPrice.sum()) ?? 0);
-  }
-
-  /// 计算某辆车某月的记录数（SQL聚合）
-  Future<int> getMonthlyRecordCount(int vehicleId, int year, int month) {
-    final startTimestamp = DateTime(year, month, 1).millisecondsSinceEpoch;
-    final endTimestamp = DateTime(year, month + 1, 1).millisecondsSinceEpoch;
-
-    final query = selectOnly(fuelRecords)
-      ..addColumns([fuelRecords.id.count()])
-      ..where(fuelRecords.vehicleId.equals(vehicleId))
-      ..where(fuelRecords.date.isBiggerOrEqualValue(startTimestamp))
-      ..where(fuelRecords.date.isSmallerThanValue(endTimestamp));
-
-    return query.getSingle().then((row) => row.read(fuelRecords.id.count()) ?? 0);
-  }
-
-  /// 计算某辆车某月的第一条和最后一条记录（用于计算里程）
-  Future<Map<String, FuelRecord?>> getMonthFirstLastRecord(
-    int vehicleId,
-    int year,
-    int month,
-  ) async {
-    final startTimestamp = DateTime(year, month, 1).millisecondsSinceEpoch;
-    final endTimestamp = DateTime(year, month + 1, 1).millisecondsSinceEpoch;
-
-    final firstRecord = await (select(fuelRecords)
+  Stream<List<Expense>> watchExpensesForVehicle(int vehicleId) {
+    return (select(expenses)
           ..where((t) => t.vehicleId.equals(vehicleId))
-          ..where((t) => t.date.isBiggerOrEqualValue(startTimestamp))
-          ..where((t) => t.date.isSmallerThanValue(endTimestamp))
-          ..orderBy([(t) => OrderingTerm.asc(t.date)])
-          ..limit(1))
-        .getSingleOrNull();
+          ..orderBy([
+            (t) => OrderingTerm.desc(t.date),
+            (t) => OrderingTerm.desc(t.id),
+          ]))
+        .watch();
+  }
 
-    final lastRecord = await (select(fuelRecords)
+  Future<List<Expense>> getExpensesForVehicle(int vehicleId) {
+    return (select(expenses)
           ..where((t) => t.vehicleId.equals(vehicleId))
-          ..where((t) => t.date.isBiggerOrEqualValue(startTimestamp))
-          ..where((t) => t.date.isSmallerThanValue(endTimestamp))
-          ..orderBy([(t) => OrderingTerm.desc(t.date)])
-          ..limit(1))
-        .getSingleOrNull();
-
-    return {'first': firstRecord, 'last': lastRecord};
+          ..orderBy([
+            (t) => OrderingTerm.asc(t.date),
+            (t) => OrderingTerm.asc(t.id),
+          ]))
+        .get();
   }
 
-  /// 计算某辆车某月的总加油量（SQL聚合）
-  Future<double> getMonthlyTotalFuel(int vehicleId, int year, int month) {
-    final startTimestamp = DateTime(year, month, 1).millisecondsSinceEpoch;
-    final endTimestamp = DateTime(year, month + 1, 1).millisecondsSinceEpoch;
-
-    final query = selectOnly(fuelRecords)
-      ..addColumns([fuelRecords.fuelAmount.sum()])
-      ..where(fuelRecords.vehicleId.equals(vehicleId))
-      ..where(fuelRecords.date.isBiggerOrEqualValue(startTimestamp))
-      ..where(fuelRecords.date.isSmallerThanValue(endTimestamp));
-
-    return query.getSingle().then((row) => row.read(fuelRecords.fuelAmount.sum()) ?? 0);
+  Future<int> insertExpense(ExpensesCompanion expense) {
+    return into(expenses).insert(expense);
   }
 
-  /// 计算某辆车的总花费（SQL聚合）
-  Future<double> getTotalCost(int vehicleId) {
-    final query = selectOnly(fuelRecords)
-      ..addColumns([fuelRecords.totalPrice.sum()])
-      ..where(fuelRecords.vehicleId.equals(vehicleId));
-
-    return query.getSingle().then((row) => row.read(fuelRecords.totalPrice.sum()) ?? 0);
+  Future<bool> updateExpense(ExpensesCompanion expense) {
+    return update(expenses).replace(expense);
   }
 
-  /// 计算某辆车的总加油量（SQL聚合）
-  Future<double> getTotalFuel(int vehicleId) {
-    final query = selectOnly(fuelRecords)
-      ..addColumns([fuelRecords.fuelAmount.sum()])
-      ..where(fuelRecords.vehicleId.equals(vehicleId));
-
-    return query.getSingle().then((row) => row.read(fuelRecords.fuelAmount.sum()) ?? 0);
+  Future<bool> deleteExpense(int id) async {
+    final n = await (delete(expenses)..where((t) => t.id.equals(id))).go();
+    return n > 0;
   }
 
-  /// 计算某辆车的最高单次加油金额（SQL聚合）
-  Future<double> getMaxSingleCost(int vehicleId) {
-    final query = selectOnly(fuelRecords)
-      ..addColumns([fuelRecords.totalPrice.max()])
-      ..where(fuelRecords.vehicleId.equals(vehicleId));
+  // ==================== 聚合查询 ====================
 
-    return query.getSingle().then((row) => row.read(fuelRecords.totalPrice.max()) ?? 0);
+  /// 某辆车「能源花费」合计（加油 + 充电）
+  Future<double> getTotalEnergyCost(int vehicleId) async {
+    final q = selectOnly(energyRecords)
+      ..addColumns([energyRecords.amount.sum()])
+      ..where(energyRecords.vehicleId.equals(vehicleId));
+    final row = await q.getSingle();
+    return row.read(energyRecords.amount.sum()) ?? 0;
   }
 
-  /// 计算某辆车的最低油价（SQL聚合）
-  Future<double> getMinPricePerLiter(int vehicleId) {
-    final query = selectOnly(fuelRecords)
-      ..addColumns([fuelRecords.pricePerLiter.min()])
-      ..where(fuelRecords.vehicleId.equals(vehicleId));
-
-    return query.getSingle().then((row) => row.read(fuelRecords.pricePerLiter.min()) ?? 0);
+  /// 某辆车「其他支出」合计（保养 + 费用）
+  Future<double> getTotalExpenseCost(int vehicleId) async {
+    final q = selectOnly(expenses)
+      ..addColumns([expenses.amount.sum()])
+      ..where(expenses.vehicleId.equals(vehicleId));
+    final row = await q.getSingle();
+    return row.read(expenses.amount.sum()) ?? 0;
   }
 
-  /// 计算某辆车的最高油价（SQL聚合）
-  Future<double> getMaxPricePerLiter(int vehicleId) {
-    final query = selectOnly(fuelRecords)
-      ..addColumns([fuelRecords.pricePerLiter.max()])
-      ..where(fuelRecords.vehicleId.equals(vehicleId));
-
-    return query.getSingle().then((row) => row.read(fuelRecords.pricePerLiter.max()) ?? 0);
+  /// 某辆车某类支出合计（maintenance / other）
+  Future<double> getTotalExpenseCostByKind(int vehicleId, String kind) async {
+    final q = selectOnly(expenses)
+      ..addColumns([expenses.amount.sum()])
+      ..where(expenses.vehicleId.equals(vehicleId))
+      ..where(expenses.kind.equals(kind));
+    final row = await q.getSingle();
+    return row.read(expenses.amount.sum()) ?? 0;
   }
 
-  // ==================== 年度统计聚合查询 ====================
-
-  /// 计算某辆车某年的总花费
-  Future<double> getYearlyTotalCost(int vehicleId, int year) {
-    final startTimestamp = DateTime(year, 1, 1).millisecondsSinceEpoch;
-    final endTimestamp = DateTime(year + 1, 1, 1).millisecondsSinceEpoch;
-
-    final query = selectOnly(fuelRecords)
-      ..addColumns([fuelRecords.totalPrice.sum()])
-      ..where(fuelRecords.vehicleId.equals(vehicleId))
-      ..where(fuelRecords.date.isBiggerOrEqualValue(startTimestamp))
-      ..where(fuelRecords.date.isSmallerThanValue(endTimestamp));
-
-    return query.getSingle().then((row) => row.read(fuelRecords.totalPrice.sum()) ?? 0);
+  /// 某辆车全部花费 = 能源 + 其他支出
+  Future<double> getTotalCostAll(int vehicleId) async {
+    final a = await getTotalEnergyCost(vehicleId);
+    final b = await getTotalExpenseCost(vehicleId);
+    return a + b;
   }
 
-  /// 计算某辆车某年的总加油量
-  Future<double> getYearlyTotalFuel(int vehicleId, int year) {
-    final startTimestamp = DateTime(year, 1, 1).millisecondsSinceEpoch;
-    final endTimestamp = DateTime(year + 1, 1, 1).millisecondsSinceEpoch;
-
-    final query = selectOnly(fuelRecords)
-      ..addColumns([fuelRecords.fuelAmount.sum()])
-      ..where(fuelRecords.vehicleId.equals(vehicleId))
-      ..where(fuelRecords.date.isBiggerOrEqualValue(startTimestamp))
-      ..where(fuelRecords.date.isSmallerThanValue(endTimestamp));
-
-    return query.getSingle().then((row) => row.read(fuelRecords.fuelAmount.sum()) ?? 0);
+  /// 某辆车的最高单次能源花费
+  Future<double> getMaxSingleCost(int vehicleId) async {
+    final q = selectOnly(energyRecords)
+      ..addColumns([energyRecords.amount.max()])
+      ..where(energyRecords.vehicleId.equals(vehicleId));
+    final row = await q.getSingle();
+    return row.read(energyRecords.amount.max()) ?? 0;
   }
 
-  /// 计算某辆车某年的记录数
-  Future<int> getYearlyRecordCount(int vehicleId, int year) {
-    final startTimestamp = DateTime(year, 1, 1).millisecondsSinceEpoch;
-    final endTimestamp = DateTime(year + 1, 1, 1).millisecondsSinceEpoch;
-
-    final query = selectOnly(fuelRecords)
-      ..addColumns([fuelRecords.id.count()])
-      ..where(fuelRecords.vehicleId.equals(vehicleId))
-      ..where(fuelRecords.date.isBiggerOrEqualValue(startTimestamp))
-      ..where(fuelRecords.date.isSmallerThanValue(endTimestamp));
-
-    return query.getSingle().then((row) => row.read(fuelRecords.id.count()) ?? 0);
+  /// 某辆车的最低单价（仅同一种能源有意义）
+  Future<double?> getMinUnitPrice(int vehicleId, String energyType) async {
+    final q = selectOnly(energyRecords)
+      ..addColumns([energyRecords.unitPrice.min()])
+      ..where(energyRecords.vehicleId.equals(vehicleId))
+      ..where(energyRecords.energyType.equals(energyType));
+    final row = await q.getSingle();
+    return row.read(energyRecords.unitPrice.min());
   }
 
-  /// 获取某辆车有记录的所有年份
+  Future<double?> getMaxUnitPrice(int vehicleId, String energyType) async {
+    final q = selectOnly(energyRecords)
+      ..addColumns([energyRecords.unitPrice.max()])
+      ..where(energyRecords.vehicleId.equals(vehicleId))
+      ..where(energyRecords.energyType.equals(energyType));
+    final row = await q.getSingle();
+    return row.read(energyRecords.unitPrice.max());
+  }
+
+  /// 某辆车有记录的年份（降序）
   Future<List<int>> getRecordYears(int vehicleId) async {
-    final records = await getFuelRecordsForVehicleNative(vehicleId);
-    final years = records.map((r) {
-      return DateTime.fromMillisecondsSinceEpoch(r.date).year;
-    }).toSet().toList();
+    final records = await getEnergyRecordsForVehicle(vehicleId);
+    final years = records
+        .map((r) => DateTime.fromMillisecondsSinceEpoch(r.date).year)
+        .toSet()
+        .toList();
     years.sort((a, b) => b.compareTo(a));
     return years;
   }
 
-  // ==================== 数据清理操作 ====================
-
-  /// 删除所有加油记录
-  Future<int> deleteAllFuelRecords() {
-    return delete(fuelRecords).go();
+  /// 某辆车的最小 / 最大里程（用于"总里程"）
+  Future<({double min, double max})?> getOdometerRange(int vehicleId) async {
+    final q = selectOnly(energyRecords)
+      ..addColumns([energyRecords.odometer.min(), energyRecords.odometer.max()])
+      ..where(energyRecords.vehicleId.equals(vehicleId));
+    final row = await q.getSingle();
+    final min = row.read(energyRecords.odometer.min());
+    final max = row.read(energyRecords.odometer.max());
+    if (min == null || max == null) return null;
+    return (min: min, max: max);
   }
 
-  /// 删除所有车辆
-  Future<int> deleteAllVehicles() {
-    return delete(vehicles).go();
+  /// 某辆车某类能源的总量（油：升 / 电：kWh）
+  Future<double> getTotalEnergyQuantity(
+      int vehicleId, String energyType) async {
+    final q = selectOnly(energyRecords)
+      ..addColumns([energyRecords.quantity.sum()])
+      ..where(energyRecords.vehicleId.equals(vehicleId))
+      ..where(energyRecords.energyType.equals(energyType));
+    final row = await q.getSingle();
+    return row.read(energyRecords.quantity.sum()) ?? 0;
   }
+
+  /// 某月总花费（能源）
+  Future<double> getMonthlyTotalCost(int vehicleId, int year, int month) async {
+    final start = DateTime(year, month, 1).millisecondsSinceEpoch;
+    final end = DateTime(year, month + 1, 1).millisecondsSinceEpoch;
+    final q = selectOnly(energyRecords)
+      ..addColumns([energyRecords.amount.sum()])
+      ..where(energyRecords.vehicleId.equals(vehicleId))
+      ..where(energyRecords.date.isBiggerOrEqualValue(start))
+      ..where(energyRecords.date.isSmallerThanValue(end));
+    final row = await q.getSingle();
+    return row.read(energyRecords.amount.sum()) ?? 0;
+  }
+
+  /// 某月某类能源的总量
+  Future<double> getMonthlyTotalQuantity(
+      int vehicleId, int year, int month, String energyType) async {
+    final start = DateTime(year, month, 1).millisecondsSinceEpoch;
+    final end = DateTime(year, month + 1, 1).millisecondsSinceEpoch;
+    final q = selectOnly(energyRecords)
+      ..addColumns([energyRecords.quantity.sum()])
+      ..where(energyRecords.vehicleId.equals(vehicleId))
+      ..where(energyRecords.date.isBiggerOrEqualValue(start))
+      ..where(energyRecords.date.isSmallerThanValue(end))
+      ..where(energyRecords.energyType.equals(energyType));
+    final row = await q.getSingle();
+    return row.read(energyRecords.quantity.sum()) ?? 0;
+  }
+
+  /// 某月记录数
+  Future<int> getMonthlyRecordCount(
+      int vehicleId, int year, int month) async {
+    final start = DateTime(year, month, 1).millisecondsSinceEpoch;
+    final end = DateTime(year, month + 1, 1).millisecondsSinceEpoch;
+    final q = selectOnly(energyRecords)
+      ..addColumns([energyRecords.id.count()])
+      ..where(energyRecords.vehicleId.equals(vehicleId))
+      ..where(energyRecords.date.isBiggerOrEqualValue(start))
+      ..where(energyRecords.date.isSmallerThanValue(end));
+    final row = await q.getSingle();
+    return row.read(energyRecords.id.count()) ?? 0;
+  }
+
+  /// 某年总花费（能源）
+  Future<double> getYearlyTotalCost(int vehicleId, int year) async {
+    final start = DateTime(year, 1, 1).millisecondsSinceEpoch;
+    final end = DateTime(year + 1, 1, 1).millisecondsSinceEpoch;
+    final q = selectOnly(energyRecords)
+      ..addColumns([energyRecords.amount.sum()])
+      ..where(energyRecords.vehicleId.equals(vehicleId))
+      ..where(energyRecords.date.isBiggerOrEqualValue(start))
+      ..where(energyRecords.date.isSmallerThanValue(end));
+    final row = await q.getSingle();
+    return row.read(energyRecords.amount.sum()) ?? 0;
+  }
+
+  /// 某年某类能源的总量
+  Future<double> getYearlyTotalQuantity(
+      int vehicleId, int year, String energyType) async {
+    final start = DateTime(year, 1, 1).millisecondsSinceEpoch;
+    final end = DateTime(year + 1, 1, 1).millisecondsSinceEpoch;
+    final q = selectOnly(energyRecords)
+      ..addColumns([energyRecords.quantity.sum()])
+      ..where(energyRecords.vehicleId.equals(vehicleId))
+      ..where(energyRecords.date.isBiggerOrEqualValue(start))
+      ..where(energyRecords.date.isSmallerThanValue(end))
+      ..where(energyRecords.energyType.equals(energyType));
+    final row = await q.getSingle();
+    return row.read(energyRecords.quantity.sum()) ?? 0;
+  }
+
+  /// 某年记录数
+  Future<int> getYearlyRecordCount(int vehicleId, int year) async {
+    final start = DateTime(year, 1, 1).millisecondsSinceEpoch;
+    final end = DateTime(year + 1, 1, 1).millisecondsSinceEpoch;
+    final q = selectOnly(energyRecords)
+      ..addColumns([energyRecords.id.count()])
+      ..where(energyRecords.vehicleId.equals(vehicleId))
+      ..where(energyRecords.date.isBiggerOrEqualValue(start))
+      ..where(energyRecords.date.isSmallerThanValue(end));
+    final row = await q.getSingle();
+    return row.read(energyRecords.id.count()) ?? 0;
+  }
+
+  /// 把所有车辆取消默认（导入前用，避免出现多个默认车）
+  Future<void> clearAllDefaultVehicles() async {
+    await customStatement('UPDATE vehicles SET is_default = 0');
+  }
+
+  // ==================== 数据清理 ====================
+
+  Future<int> deleteAllEnergyRecords() => delete(energyRecords).go();
+
+  Future<int> deleteAllExpenses() => delete(expenses).go();
+
+  Future<int> deleteAllVehicles() => delete(vehicles).go();
 }
 
-/// 创建数据库实例的单例函数
+/// 数据库单例
 AppDatabase? _databaseInstance;
 
 AppDatabase getDatabaseInstance() {
-  if (_databaseInstance == null) {
-    _databaseInstance = AppDatabase(_openConnection());
-  }
+  _databaseInstance ??= AppDatabase(_openConnection());
   return _databaseInstance!;
 }
 
-/// 重置数据库实例（用于错误恢复）
+/// 重置实例（错误恢复用）
 void resetDatabaseInstance() {
   _databaseInstance = null;
 }
 
-/// 打开数据库连接
+/// 数据库文件路径
+Future<File> getDatabaseFile() async {
+  final dir = await getApplicationDocumentsDirectory();
+  return File(p.join(dir.path, 'zhiji_oil.db'));
+}
+
+/// 打开连接
 LazyDatabase _openConnection() {
   return LazyDatabase(() async {
-    final dbFolder = await getApplicationDocumentsDirectory();
-    final file = File(p.join(dbFolder.path, 'zhiji_oil.db'));
+    final file = await getDatabaseFile();
     return NativeDatabase(file);
   });
 }

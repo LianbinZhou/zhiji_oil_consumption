@@ -1,4 +1,4 @@
-// 智记油耗 - 主题配置文件
+// 智记能耗 - 主题配置文件
 // 使用温暖的橙色系配色,接近小熊油耗风格
 
 import 'package:flutter/material.dart';
@@ -44,7 +44,7 @@ class AppTheme {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
           side: BorderSide(
-            color: colorScheme.outlineVariant.withOpacity(0.5),
+            color: colorScheme.outlineVariant.withValues(alpha: 0.5),
             width: 1,
           ),
         ),
@@ -55,10 +55,10 @@ class AppTheme {
       navigationBarTheme: NavigationBarThemeData(
         elevation: 0,
         height: 65,
-        indicatorColor: _primaryColor.withOpacity(0.15),
+        indicatorColor: _primaryColor.withValues(alpha: 0.15),
         labelTextStyle: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
-            return TextStyle(
+            return const TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w600,
               color: _primaryColor,
@@ -71,7 +71,7 @@ class AppTheme {
         }),
         iconTheme: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
-            return IconThemeData(color: _primaryColor, size: 24);
+            return const IconThemeData(color: _primaryColor, size: 24);
           }
           return IconThemeData(color: colorScheme.onSurfaceVariant, size: 24);
         }),
@@ -81,15 +81,15 @@ class AppTheme {
       inputDecorationTheme: InputDecorationTheme(
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: colorScheme.outline.withOpacity(0.3)),
+          borderSide: BorderSide(color: colorScheme.outline.withValues(alpha: 0.3)),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: colorScheme.outline.withOpacity(0.3)),
+          borderSide: BorderSide(color: colorScheme.outline.withValues(alpha: 0.3)),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: _primaryColor, width: 2),
+          borderSide: const BorderSide(color: _primaryColor, width: 2),
         ),
         filled: true,
         fillColor: colorScheme.surfaceContainerLowest,
@@ -136,8 +136,8 @@ class AppTheme {
 
       // Chip主题
       chipTheme: ChipThemeData(
-        backgroundColor: _primaryColor.withOpacity(0.1),
-        labelStyle: TextStyle(
+        backgroundColor: _primaryColor.withValues(alpha: 0.1),
+        labelStyle: const TextStyle(
           fontSize: 11,
           fontWeight: FontWeight.w500,
           color: _primaryColor,
@@ -151,7 +151,7 @@ class AppTheme {
 
       // 分割线
       dividerTheme: DividerThemeData(
-        color: colorScheme.outlineVariant.withOpacity(0.3),
+        color: colorScheme.outlineVariant.withValues(alpha: 0.3),
         thickness: 1,
         space: 24,
       ),
@@ -215,7 +215,7 @@ class AppTheme {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
           side: BorderSide(
-            color: colorScheme.outlineVariant.withOpacity(0.3),
+            color: colorScheme.outlineVariant.withValues(alpha: 0.3),
             width: 1,
           ),
         ),
@@ -225,10 +225,10 @@ class AppTheme {
       navigationBarTheme: NavigationBarThemeData(
         elevation: 0,
         height: 65,
-        indicatorColor: _primaryColor.withOpacity(0.2),
+        indicatorColor: _primaryColor.withValues(alpha: 0.2),
         labelTextStyle: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
-            return TextStyle(
+            return const TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w600,
               color: _primaryColor,
@@ -241,7 +241,7 @@ class AppTheme {
         }),
         iconTheme: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
-            return IconThemeData(color: _primaryColor, size: 24);
+            return const IconThemeData(color: _primaryColor, size: 24);
           }
           return IconThemeData(color: colorScheme.onSurfaceVariant, size: 24);
         }),
@@ -250,15 +250,15 @@ class AppTheme {
       inputDecorationTheme: InputDecorationTheme(
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: colorScheme.outline.withOpacity(0.3)),
+          borderSide: BorderSide(color: colorScheme.outline.withValues(alpha: 0.3)),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: colorScheme.outline.withOpacity(0.3)),
+          borderSide: BorderSide(color: colorScheme.outline.withValues(alpha: 0.3)),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: _primaryColor, width: 2),
+          borderSide: const BorderSide(color: _primaryColor, width: 2),
         ),
         filled: true,
         fillColor: colorScheme.surfaceContainerHighest,
@@ -301,8 +301,8 @@ class AppTheme {
       ),
 
       chipTheme: ChipThemeData(
-        backgroundColor: _primaryColor.withOpacity(0.15),
-        labelStyle: TextStyle(
+        backgroundColor: _primaryColor.withValues(alpha: 0.15),
+        labelStyle: const TextStyle(
           fontSize: 11,
           fontWeight: FontWeight.w500,
           color: _primaryColor,
@@ -315,7 +315,7 @@ class AppTheme {
       ),
 
       dividerTheme: DividerThemeData(
-        color: colorScheme.outlineVariant.withOpacity(0.3),
+        color: colorScheme.outlineVariant.withValues(alpha: 0.3),
         thickness: 1,
         space: 24,
       ),
@@ -328,7 +328,7 @@ class AppTheme {
       ),
 
       // BottomSheet
-      bottomSheetTheme: BottomSheetThemeData(
+      bottomSheetTheme: const BottomSheetThemeData(
         showDragHandle: false,
       ),
 

@@ -1,7 +1,7 @@
-// 智记油耗 - 应用主入口文件
-// 这是Flutter应用的起点,负责初始化应用并启动
+// 智记能耗 - 应用主入口文件
 
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 // 导入主题配置
@@ -10,13 +10,18 @@ import 'shared/themes/app_theme.dart';
 import 'shared/routes/app_router.dart';
 // 导入设置Provider
 import 'features/settings/providers/settings_provider.dart';
+// 迁移前自动备份（必须在数据库连接打开之前执行）
+import 'data/database/migration_backup.dart';
 
-/// 应用的主函数
-/// 
-/// Dart程序的入口点,类似于其他语言的main()函数
-/// 当应用启动时,首先执行这个函数
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // 旧版本数据库先备份成 *.pre-v4.bak*，然后在打开连接时触发迁移。
+  // 顺序很重要：必须在任何代码碰数据库之前完成复制。
+  final backupPath = await ensurePreMigrationBackup();
+  if (backupPath != null) {
+    debugPrint('[迁移] 已备份旧数据库: $backupPath');
+  }
 
   runApp(
     const ProviderScope(
@@ -25,41 +30,37 @@ void main() {
   );
 }
 
-/// 智记油耗应用的主组件
-/// 
-/// 这是一个无状态组件(StatelessWidget),因为它本身不需要管理状态
-/// 所有的状态管理都交给Riverpod处理
+/// 智记能耗应用的主组件
 class ZhijiOilConsumptionApp extends ConsumerWidget {
   const ZhijiOilConsumptionApp({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // 创建路由器实例
-    // go_router使用这个对象来管理页面导航
     final router = createRouter();
-    
-    // 监听主题模式设置
     final themeMode = ref.watch(flutterThemeModeProvider);
-    
-    // MaterialApp 是Material Design风格应用的根组件
+
     return MaterialApp.router(
-      // 应用标题(显示在任务栏或最近应用中)
-      title: '智记油耗',
-      
-      // 调试横幅(显示应用信息,生产环境应设为false)
+      title: '智记能耗',
       debugShowCheckedModeBanner: false,
-      
-      // 浅色主题配置
+
+      // ===== 中文本地化 =====
+      // 不配这段的话，showDatePicker / 时间选择器 / 文本选择菜单全是英文
+      // （会显示 "Select date" / "Cancel" / "OK" 之类）
+      locale: const Locale('zh', 'CN'),
+      supportedLocales: const [
+        Locale('zh', 'CN'),
+        Locale('en', 'US'),
+      ],
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+
       theme: AppTheme.lightTheme,
-      
-      // 深色主题配置
       darkTheme: AppTheme.darkTheme,
-      
-      // 主题模式:根据用户设置动态切换
       themeMode: themeMode,
-      
-      // 路由器配置
-      // 使用go_router来处理所有页面导航
+
       routerConfig: router,
     );
   }

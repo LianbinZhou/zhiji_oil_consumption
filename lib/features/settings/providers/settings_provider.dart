@@ -1,4 +1,4 @@
-// 智记油耗 - 设置Provider
+// 智记能耗 - 设置Provider
 // 这个文件管理用户的所有偏好设置
 
 import 'package:flutter/material.dart';

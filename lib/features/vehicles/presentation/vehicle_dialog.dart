@@ -1,8 +1,9 @@
-// 智记油耗 - 添加/编辑车辆对话框
+// 智记能耗 - 添加/编辑车辆对话框
 // 这个文件创建一个弹窗表单,让用户输入或修改车辆信息
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../shared/widgets/labeled_field.dart';
 import 'package:drift/drift.dart' as drift;
 
 import '../providers/vehicles_provider.dart';
@@ -34,6 +35,17 @@ class _VehicleDialogState extends ConsumerState<VehicleDialog> {
 
   final _formKey = GlobalKey<FormState>();
   String? _selectedVehicleType;
+
+  /// 能源类型：gasoline(油车) / electric(纯电) / hybrid(混动)
+  /// 它决定后续录入界面显示加油字段还是充电字段
+  String _selectedEnergyType = 'gasoline';
+
+  /// 能源类型选项（key 存库，value 显示）
+  static const Map<String, String> _energyOptions = {
+    'gasoline': '油车（汽油 / 柴油）',
+    'electric': '纯电',
+    'hybrid': '混动（既能加油也能充电）',
+  };
   bool _isLoading = false;
 
   static const List<String> vehicleTypes = [
@@ -56,6 +68,7 @@ class _VehicleDialogState extends ConsumerState<VehicleDialog> {
       _colorController.text = widget.vehicle!.color ?? '';
       _notesController.text = widget.vehicle!.notes ?? '';
       _selectedVehicleType = widget.vehicle!.vehicleType;
+      _selectedEnergyType = widget.vehicle!.energyType;
     }
   }
 
@@ -98,13 +111,14 @@ class _VehicleDialogState extends ConsumerState<VehicleDialog> {
                 ? null
                 : _notesController.text.trim()),
             vehicleType: drift.Value(_selectedVehicleType),
+        energyType: drift.Value(_selectedEnergyType),
             isDefault: drift.Value(shouldBeDefault),
             createdAt: drift.Value(now.millisecondsSinceEpoch),
             updatedAt: drift.Value(now.millisecondsSinceEpoch),
           ),
         );
       } else {
-        final existingVehicle = await database.getVehicleByIdNative(widget.vehicle!.id);
+        final existingVehicle = await database.getVehicleById(widget.vehicle!.id);
         if (existingVehicle == null) {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
@@ -130,6 +144,7 @@ class _VehicleDialogState extends ConsumerState<VehicleDialog> {
                 ? null
                 : _notesController.text.trim()),
             vehicleType: drift.Value(_selectedVehicleType),
+        energyType: drift.Value(_selectedEnergyType),
             isDefault: drift.Value(existingVehicle.isDefault),
             createdAt: drift.Value(existingVehicle.createdAt),
             updatedAt: drift.Value(now.millisecondsSinceEpoch),
@@ -165,69 +180,107 @@ class _VehicleDialogState extends ConsumerState<VehicleDialog> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              TextFormField(
-                controller: _brandController,
-                decoration: const InputDecoration(
-                  labelText: '品牌 *',
-                  hintText: '例如:丰田、本田、大众',
-                  prefixIcon: Icon(Icons.branding_watermark),
+              LabeledField(
+                label: '品牌',
+                isRequired: true,
+                child: TextFormField(
+                  controller: _brandController,
+                  decoration: fieldDecoration(
+                    icon: Icons.branding_watermark,
+                    hint: '例如:丰田、本田',
+                  ),
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return '请输入车辆品牌';
+                    }
+                    return null;
+                  },
                 ),
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return '请输入车辆品牌';
-                  }
-                  return null;
+              ),
+
+              const SizedBox(height: 16),
+
+              LabeledField(
+                label: '型号',
+                isRequired: true,
+                child: TextFormField(
+                  controller: _modelController,
+                  decoration: fieldDecoration(
+                    icon: Icons.directions_car,
+                    hint: '例如:卡罗拉、雅阁',
+                  ),
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return '请输入车辆型号';
+                    }
+                    return null;
+                  },
+                ),
+              ),
+
+              const SizedBox(height: 16),
+
+              LabeledField(
+                label: '车牌号码',
+                helper: '可留空',
+                child: TextFormField(
+                  controller: _licensePlateController,
+                  decoration: fieldDecoration(
+                    icon: Icons.confirmation_number,
+                    hint: '例如:京A88888',
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 16),
+
+              LabeledField(
+                label: '颜色',
+                helper: '可留空',
+                child: TextFormField(
+                  controller: _colorController,
+                  decoration: fieldDecoration(
+                    icon: Icons.color_lens,
+                    hint: '例如:白色',
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 16),
+
+              // 能源类型（决定录入界面形态，放在车身材质之前因为它更重要）
+              LabeledField(
+                label: '能源类型',
+                isRequired: true,
+                child: DropdownButtonFormField<String>(
+                  initialValue: _selectedEnergyType,
+                  decoration: fieldDecoration(icon: Icons.bolt, hint: '选择能源类型'),
+                items: _energyOptions.entries.map((e) {
+                  return DropdownMenuItem(
+                    value: e.key,
+                    child: Text(e.value),
+                  );
+                }).toList(),
+                onChanged: (value) {
+                  if (value == null) return;
+                  setState(() {
+                    _selectedEnergyType = value;
+                  });
                 },
-              ),
-
-              const SizedBox(height: 16),
-
-              TextFormField(
-                controller: _modelController,
-                decoration: const InputDecoration(
-                  labelText: '型号 *',
-                  hintText: '例如:卡罗拉、雅阁、帕萨特',
-                  prefixIcon: Icon(Icons.directions_car),
-                ),
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return '请输入车辆型号';
-                  }
-                  return null;
-                },
-              ),
-
-              const SizedBox(height: 16),
-
-              TextFormField(
-                controller: _licensePlateController,
-                decoration: const InputDecoration(
-                  labelText: '车牌号码',
-                  hintText: '例如:京A88888(可选)',
-                  prefixIcon: Icon(Icons.confirmation_number),
                 ),
               ),
 
               const SizedBox(height: 16),
 
-              TextFormField(
-                controller: _colorController,
-                decoration: const InputDecoration(
-                  labelText: '颜色',
-                  hintText: '例如:白色、黑色、红色(可选)',
-                  prefixIcon: Icon(Icons.color_lens),
-                ),
-              ),
-
-              const SizedBox(height: 16),
-
-              DropdownButtonFormField<String>(
-                value: _selectedVehicleType,
-                decoration: const InputDecoration(
-                  labelText: '车辆类型',
-                  hintText: '选择车辆类型(可选)',
-                  prefixIcon: Icon(Icons.category),
-                ),
+              LabeledField(
+                label: '车辆类型',
+                helper: '可留空',
+                child: DropdownButtonFormField<String>(
+                  initialValue: _selectedVehicleType,
+                  decoration: fieldDecoration(
+                    icon: Icons.category,
+                    hint: '例如:轿车、SUV',
+                  ),
                 items: vehicleTypes.map((type) {
                   return DropdownMenuItem(
                     value: type,
@@ -239,18 +292,21 @@ class _VehicleDialogState extends ConsumerState<VehicleDialog> {
                     _selectedVehicleType = value;
                   });
                 },
+                ),
               ),
 
               const SizedBox(height: 16),
 
-              TextFormField(
-                controller: _notesController,
-                decoration: const InputDecoration(
-                  labelText: '备注',
-                  hintText: '其他需要记录的信息(可选)',
-                  prefixIcon: Icon(Icons.note),
+              LabeledField(
+                label: '备注',
+                child: TextFormField(
+                  controller: _notesController,
+                  decoration: fieldDecoration(
+                    icon: Icons.note,
+                    hint: '其他需要记录的信息（可选）',
+                  ),
+                  maxLines: 3,
                 ),
-                maxLines: 3,
               ),
             ],
           ),

@@ -1,7 +1,6 @@
-// 智记油耗 - 基础Widget测试
+// 智记能耗 - 基础Widget测试
 // 确保应用能正常启动
 
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -17,6 +16,6 @@ void main() {
     );
 
     // 验证应用标题显示
-    expect(find.text('智记油耗'), findsOneWidget);
+    expect(find.text('智记能耗'), findsOneWidget);
   });
 }

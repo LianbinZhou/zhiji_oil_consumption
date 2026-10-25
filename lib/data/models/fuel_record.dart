@@ -1,4 +1,4 @@
-// 智记油耗 - 油耗记录数据模型
+// 智记能耗 - 油耗记录数据模型
 // 这个文件定义了"油耗记录"的数据结构
 
 /// 油耗记录数据类
@@ -35,10 +35,16 @@ class FuelRecordModel {
   /// true表示加满了,false表示只加了一部分
   final bool isFullTank;
   
+  /// 这条记录是油还是电：gasoline / electric
+  final String energyType;
+
   /// 是否油灯亮了
   /// 用于"亮灯法"计算油耗
   final bool isLightOn;
   
+  /// 充电方式：fast / slow / home（仅充电记录，存英文枚举）
+  final String? chargeMethod;
+
   /// 油品类型(92#/95#/98#/柴油等)
   final String? fuelType;
   
@@ -62,6 +68,8 @@ class FuelRecordModel {
     required this.odometer,
     required this.isFullTank,
     this.isLightOn = false,
+    this.energyType = 'gasoline',
+    this.chargeMethod,
     this.fuelType,
     this.stationName,
     this.notes,
@@ -70,28 +78,6 @@ class FuelRecordModel {
 
   /// 计算每公里成本(元/公里)
   /// 
-  /// 这个方法需要配合上一条记录的里程数来计算
-  /// 如果这是第一条记录,返回null
-  double? calculateCostPerKm(double? previousOdometer) {
-    if (previousOdometer == null || previousOdometer >= odometer) {
-      return null;
-    }
-    double distance = odometer - previousOdometer;
-    return totalPrice / distance;
-  }
-
-  /// 计算实际油耗(升/100公里)
-  ///
-  /// 这个方法需要配合上一条记录来计算
-  /// 公式: 加油量 / 行驶距离 * 100
-  double? calculateFuelConsumption(double? previousOdometer) {
-    if (previousOdometer == null || previousOdometer >= odometer) {
-      return null;
-    }
-    double distance = odometer - previousOdometer;
-    return (fuelAmount / distance) * 100; // 升/100公里
-  }
-
   /// 创建一个副本,但可以修改某些字段
   FuelRecordModel copyWith({
     int? id,
@@ -103,6 +89,8 @@ class FuelRecordModel {
     double? odometer,
     bool? isFullTank,
     bool? isLightOn,
+    String? energyType,
+    String? chargeMethod,
     String? fuelType,
     String? stationName,
     String? notes,
@@ -118,48 +106,12 @@ class FuelRecordModel {
       odometer: odometer ?? this.odometer,
       isFullTank: isFullTank ?? this.isFullTank,
       isLightOn: isLightOn ?? this.isLightOn,
+      energyType: energyType ?? this.energyType,
+      chargeMethod: chargeMethod ?? this.chargeMethod,
       fuelType: fuelType ?? this.fuelType,
       stationName: stationName ?? this.stationName,
       notes: notes ?? this.notes,
       createdAt: createdAt ?? this.createdAt,
-    );
-  }
-
-  /// 将对象转换为Map
-  Map<String, dynamic> toMap() {
-    return {
-      'id': id,
-      'vehicle_id': vehicleId,
-      'date': date.millisecondsSinceEpoch,
-      'fuel_amount': fuelAmount,
-      'total_price': totalPrice,
-      'price_per_liter': pricePerLiter,
-      'odometer': odometer,
-      'is_full_tank': isFullTank ? 1 : 0,
-      'is_light_on': isLightOn ? 1 : 0,
-      'fuel_type': fuelType,
-      'station_name': stationName,
-      'notes': notes,
-      'created_at': createdAt.millisecondsSinceEpoch,
-    };
-  }
-
-  /// 从Map创建对象
-  factory FuelRecordModel.fromMap(Map<String, dynamic> map) {
-    return FuelRecordModel(
-      id: map['id'] as int,
-      vehicleId: map['vehicle_id'] as int,
-      date: DateTime.fromMillisecondsSinceEpoch(map['date'] as int),
-      fuelAmount: (map['fuel_amount'] as num).toDouble(),
-      totalPrice: (map['total_price'] as num).toDouble(),
-      pricePerLiter: (map['price_per_liter'] as num).toDouble(),
-      odometer: (map['odometer'] as num).toDouble(),
-      isFullTank: (map['is_full_tank'] as int) == 1,
-      isLightOn: (map['is_light_on'] as int?) == 1,
-      fuelType: map['fuel_type'] as String?,
-      stationName: map['station_name'] as String?,
-      notes: map['notes'] as String?,
-      createdAt: DateTime.fromMillisecondsSinceEpoch(map['created_at'] as int),
     );
   }
 

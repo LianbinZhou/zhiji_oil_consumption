@@ -74,6 +74,14 @@ class $VehiclesTable extends Vehicles with TableInfo<$VehiclesTable, Vehicle> {
       defaultConstraints:
           GeneratedColumn.constraintIsAlways('CHECK ("is_default" IN (0, 1))'),
       defaultValue: const Constant(false));
+  static const VerificationMeta _energyTypeMeta =
+      const VerificationMeta('energyType');
+  @override
+  late final GeneratedColumn<String> energyType = GeneratedColumn<String>(
+      'energy_type', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(EnergyTypes.gasoline));
   static const VerificationMeta _createdAtMeta =
       const VerificationMeta('createdAt');
   @override
@@ -96,6 +104,7 @@ class $VehiclesTable extends Vehicles with TableInfo<$VehiclesTable, Vehicle> {
         notes,
         vehicleType,
         isDefault,
+        energyType,
         createdAt,
         updatedAt
       ];
@@ -148,6 +157,12 @@ class $VehiclesTable extends Vehicles with TableInfo<$VehiclesTable, Vehicle> {
       context.handle(_isDefaultMeta,
           isDefault.isAcceptableOrUnknown(data['is_default']!, _isDefaultMeta));
     }
+    if (data.containsKey('energy_type')) {
+      context.handle(
+          _energyTypeMeta,
+          energyType.isAcceptableOrUnknown(
+              data['energy_type']!, _energyTypeMeta));
+    }
     if (data.containsKey('created_at')) {
       context.handle(_createdAtMeta,
           createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
@@ -185,6 +200,8 @@ class $VehiclesTable extends Vehicles with TableInfo<$VehiclesTable, Vehicle> {
           .read(DriftSqlType.string, data['${effectivePrefix}vehicle_type']),
       isDefault: attachedDatabase.typeMapping
           .read(DriftSqlType.bool, data['${effectivePrefix}is_default'])!,
+      energyType: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}energy_type'])!,
       createdAt: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}created_at'])!,
       updatedAt: attachedDatabase.typeMapping
@@ -199,40 +216,38 @@ class $VehiclesTable extends Vehicles with TableInfo<$VehiclesTable, Vehicle> {
 }
 
 class Vehicle extends DataClass implements Insertable<Vehicle> {
-  /// 主键ID
-  /// autoIncrement()表示ID会自动递增,不需要手动设置
+  /// 主键 ID
   final int id;
 
-  /// 车辆品牌(必填)
-  /// text()表示这是文本类型
-  /// minLength(1)确保品牌名称不能为空
+  /// 车辆品牌
   final String brand;
 
-  /// 车辆型号(必填)
+  /// 车辆型号
   final String model;
 
-  /// 车牌号码(可选)
-  /// nullable()表示这个字段可以为空
+  /// 车牌号码
   final String? licensePlate;
 
-  /// 车辆颜色(可选)
+  /// 车辆颜色
   final String? color;
 
-  /// 备注信息(可选)
-  /// longerText()表示可以存储更长的文本
+  /// 备注
   final String? notes;
 
-  /// 车辆类型(可选,如:轿车、SUV、MPV等)
+  /// 车辆类型（轿车/SUV/MPV 等，说的是车身材质，不是能源）
   final String? vehicleType;
 
   /// 是否为默认车辆
   final bool isDefault;
 
-  /// 创建时间
-  /// 存储为整数(毫秒时间戳)
+  /// 【v4 新增】能源类型：gasoline / electric / hybrid
+  /// 决定录入界面显示哪些字段、统计用哪套指标
+  final String energyType;
+
+  /// 创建时间（毫秒时间戳）
   final int createdAt;
 
-  /// 更新时间
+  /// 更新时间（毫秒时间戳）
   final int updatedAt;
   const Vehicle(
       {required this.id,
@@ -243,6 +258,7 @@ class Vehicle extends DataClass implements Insertable<Vehicle> {
       this.notes,
       this.vehicleType,
       required this.isDefault,
+      required this.energyType,
       required this.createdAt,
       required this.updatedAt});
   @override
@@ -264,6 +280,7 @@ class Vehicle extends DataClass implements Insertable<Vehicle> {
       map['vehicle_type'] = Variable<String>(vehicleType);
     }
     map['is_default'] = Variable<bool>(isDefault);
+    map['energy_type'] = Variable<String>(energyType);
     map['created_at'] = Variable<int>(createdAt);
     map['updated_at'] = Variable<int>(updatedAt);
     return map;
@@ -285,6 +302,7 @@ class Vehicle extends DataClass implements Insertable<Vehicle> {
           ? const Value.absent()
           : Value(vehicleType),
       isDefault: Value(isDefault),
+      energyType: Value(energyType),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
     );
@@ -302,6 +320,7 @@ class Vehicle extends DataClass implements Insertable<Vehicle> {
       notes: serializer.fromJson<String?>(json['notes']),
       vehicleType: serializer.fromJson<String?>(json['vehicleType']),
       isDefault: serializer.fromJson<bool>(json['isDefault']),
+      energyType: serializer.fromJson<String>(json['energyType']),
       createdAt: serializer.fromJson<int>(json['createdAt']),
       updatedAt: serializer.fromJson<int>(json['updatedAt']),
     );
@@ -318,6 +337,7 @@ class Vehicle extends DataClass implements Insertable<Vehicle> {
       'notes': serializer.toJson<String?>(notes),
       'vehicleType': serializer.toJson<String?>(vehicleType),
       'isDefault': serializer.toJson<bool>(isDefault),
+      'energyType': serializer.toJson<String>(energyType),
       'createdAt': serializer.toJson<int>(createdAt),
       'updatedAt': serializer.toJson<int>(updatedAt),
     };
@@ -332,6 +352,7 @@ class Vehicle extends DataClass implements Insertable<Vehicle> {
           Value<String?> notes = const Value.absent(),
           Value<String?> vehicleType = const Value.absent(),
           bool? isDefault,
+          String? energyType,
           int? createdAt,
           int? updatedAt}) =>
       Vehicle(
@@ -344,6 +365,7 @@ class Vehicle extends DataClass implements Insertable<Vehicle> {
         notes: notes.present ? notes.value : this.notes,
         vehicleType: vehicleType.present ? vehicleType.value : this.vehicleType,
         isDefault: isDefault ?? this.isDefault,
+        energyType: energyType ?? this.energyType,
         createdAt: createdAt ?? this.createdAt,
         updatedAt: updatedAt ?? this.updatedAt,
       );
@@ -360,6 +382,8 @@ class Vehicle extends DataClass implements Insertable<Vehicle> {
       vehicleType:
           data.vehicleType.present ? data.vehicleType.value : this.vehicleType,
       isDefault: data.isDefault.present ? data.isDefault.value : this.isDefault,
+      energyType:
+          data.energyType.present ? data.energyType.value : this.energyType,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
     );
@@ -376,6 +400,7 @@ class Vehicle extends DataClass implements Insertable<Vehicle> {
           ..write('notes: $notes, ')
           ..write('vehicleType: $vehicleType, ')
           ..write('isDefault: $isDefault, ')
+          ..write('energyType: $energyType, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -384,7 +409,7 @@ class Vehicle extends DataClass implements Insertable<Vehicle> {
 
   @override
   int get hashCode => Object.hash(id, brand, model, licensePlate, color, notes,
-      vehicleType, isDefault, createdAt, updatedAt);
+      vehicleType, isDefault, energyType, createdAt, updatedAt);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -397,6 +422,7 @@ class Vehicle extends DataClass implements Insertable<Vehicle> {
           other.notes == this.notes &&
           other.vehicleType == this.vehicleType &&
           other.isDefault == this.isDefault &&
+          other.energyType == this.energyType &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
 }
@@ -410,6 +436,7 @@ class VehiclesCompanion extends UpdateCompanion<Vehicle> {
   final Value<String?> notes;
   final Value<String?> vehicleType;
   final Value<bool> isDefault;
+  final Value<String> energyType;
   final Value<int> createdAt;
   final Value<int> updatedAt;
   const VehiclesCompanion({
@@ -421,6 +448,7 @@ class VehiclesCompanion extends UpdateCompanion<Vehicle> {
     this.notes = const Value.absent(),
     this.vehicleType = const Value.absent(),
     this.isDefault = const Value.absent(),
+    this.energyType = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
   });
@@ -433,6 +461,7 @@ class VehiclesCompanion extends UpdateCompanion<Vehicle> {
     this.notes = const Value.absent(),
     this.vehicleType = const Value.absent(),
     this.isDefault = const Value.absent(),
+    this.energyType = const Value.absent(),
     required int createdAt,
     required int updatedAt,
   })  : brand = Value(brand),
@@ -448,6 +477,7 @@ class VehiclesCompanion extends UpdateCompanion<Vehicle> {
     Expression<String>? notes,
     Expression<String>? vehicleType,
     Expression<bool>? isDefault,
+    Expression<String>? energyType,
     Expression<int>? createdAt,
     Expression<int>? updatedAt,
   }) {
@@ -460,6 +490,7 @@ class VehiclesCompanion extends UpdateCompanion<Vehicle> {
       if (notes != null) 'notes': notes,
       if (vehicleType != null) 'vehicle_type': vehicleType,
       if (isDefault != null) 'is_default': isDefault,
+      if (energyType != null) 'energy_type': energyType,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
     });
@@ -474,6 +505,7 @@ class VehiclesCompanion extends UpdateCompanion<Vehicle> {
       Value<String?>? notes,
       Value<String?>? vehicleType,
       Value<bool>? isDefault,
+      Value<String>? energyType,
       Value<int>? createdAt,
       Value<int>? updatedAt}) {
     return VehiclesCompanion(
@@ -485,6 +517,7 @@ class VehiclesCompanion extends UpdateCompanion<Vehicle> {
       notes: notes ?? this.notes,
       vehicleType: vehicleType ?? this.vehicleType,
       isDefault: isDefault ?? this.isDefault,
+      energyType: energyType ?? this.energyType,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -517,6 +550,9 @@ class VehiclesCompanion extends UpdateCompanion<Vehicle> {
     if (isDefault.present) {
       map['is_default'] = Variable<bool>(isDefault.value);
     }
+    if (energyType.present) {
+      map['energy_type'] = Variable<String>(energyType.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<int>(createdAt.value);
     }
@@ -537,6 +573,7 @@ class VehiclesCompanion extends UpdateCompanion<Vehicle> {
           ..write('notes: $notes, ')
           ..write('vehicleType: $vehicleType, ')
           ..write('isDefault: $isDefault, ')
+          ..write('energyType: $energyType, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -544,12 +581,12 @@ class VehiclesCompanion extends UpdateCompanion<Vehicle> {
   }
 }
 
-class $FuelRecordsTable extends FuelRecords
-    with TableInfo<$FuelRecordsTable, FuelRecord> {
+class $EnergyRecordsTable extends EnergyRecords
+    with TableInfo<$EnergyRecordsTable, EnergyRecord> {
   @override
   final GeneratedDatabase attachedDatabase;
   final String? _alias;
-  $FuelRecordsTable(this.attachedDatabase, [this._alias]);
+  $EnergyRecordsTable(this.attachedDatabase, [this._alias]);
   static const VerificationMeta _idMeta = const VerificationMeta('id');
   @override
   late final GeneratedColumn<int> id = GeneratedColumn<int>(
@@ -568,28 +605,35 @@ class $FuelRecordsTable extends FuelRecords
       requiredDuringInsert: true,
       defaultConstraints:
           GeneratedColumn.constraintIsAlways('REFERENCES vehicles (id)'));
+  static const VerificationMeta _energyTypeMeta =
+      const VerificationMeta('energyType');
+  @override
+  late final GeneratedColumn<String> energyType = GeneratedColumn<String>(
+      'energy_type', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(EnergyTypes.gasoline));
   static const VerificationMeta _dateMeta = const VerificationMeta('date');
   @override
   late final GeneratedColumn<int> date = GeneratedColumn<int>(
       'date', aliasedName, false,
       type: DriftSqlType.int, requiredDuringInsert: true);
-  static const VerificationMeta _fuelAmountMeta =
-      const VerificationMeta('fuelAmount');
+  static const VerificationMeta _quantityMeta =
+      const VerificationMeta('quantity');
   @override
-  late final GeneratedColumn<double> fuelAmount = GeneratedColumn<double>(
-      'fuel_amount', aliasedName, false,
+  late final GeneratedColumn<double> quantity = GeneratedColumn<double>(
+      'quantity', aliasedName, false,
       type: DriftSqlType.double, requiredDuringInsert: true);
-  static const VerificationMeta _totalPriceMeta =
-      const VerificationMeta('totalPrice');
+  static const VerificationMeta _amountMeta = const VerificationMeta('amount');
   @override
-  late final GeneratedColumn<double> totalPrice = GeneratedColumn<double>(
-      'total_price', aliasedName, false,
+  late final GeneratedColumn<double> amount = GeneratedColumn<double>(
+      'amount', aliasedName, false,
       type: DriftSqlType.double, requiredDuringInsert: true);
-  static const VerificationMeta _pricePerLiterMeta =
-      const VerificationMeta('pricePerLiter');
+  static const VerificationMeta _unitPriceMeta =
+      const VerificationMeta('unitPrice');
   @override
-  late final GeneratedColumn<double> pricePerLiter = GeneratedColumn<double>(
-      'price_per_liter', aliasedName, false,
+  late final GeneratedColumn<double> unitPrice = GeneratedColumn<double>(
+      'unit_price', aliasedName, false,
       type: DriftSqlType.double, requiredDuringInsert: true);
   static const VerificationMeta _odometerMeta =
       const VerificationMeta('odometer');
@@ -597,15 +641,14 @@ class $FuelRecordsTable extends FuelRecords
   late final GeneratedColumn<double> odometer = GeneratedColumn<double>(
       'odometer', aliasedName, false,
       type: DriftSqlType.double, requiredDuringInsert: true);
-  static const VerificationMeta _isFullTankMeta =
-      const VerificationMeta('isFullTank');
+  static const VerificationMeta _isFullMeta = const VerificationMeta('isFull');
   @override
-  late final GeneratedColumn<bool> isFullTank = GeneratedColumn<bool>(
-      'is_full_tank', aliasedName, false,
+  late final GeneratedColumn<bool> isFull = GeneratedColumn<bool>(
+      'is_full', aliasedName, false,
       type: DriftSqlType.bool,
       requiredDuringInsert: false,
-      defaultConstraints: GeneratedColumn.constraintIsAlways(
-          'CHECK ("is_full_tank" IN (0, 1))'),
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('CHECK ("is_full" IN (0, 1))'),
       defaultValue: const Constant(false));
   static const VerificationMeta _isLightOnMeta =
       const VerificationMeta('isLightOn');
@@ -622,6 +665,14 @@ class $FuelRecordsTable extends FuelRecords
   @override
   late final GeneratedColumn<String> fuelType = GeneratedColumn<String>(
       'fuel_type', aliasedName, true,
+      additionalChecks: GeneratedColumn.checkTextLength(maxTextLength: 10),
+      type: DriftSqlType.string,
+      requiredDuringInsert: false);
+  static const VerificationMeta _chargeMethodMeta =
+      const VerificationMeta('chargeMethod');
+  @override
+  late final GeneratedColumn<String> chargeMethod = GeneratedColumn<String>(
+      'charge_method', aliasedName, true,
       additionalChecks: GeneratedColumn.checkTextLength(maxTextLength: 10),
       type: DriftSqlType.string,
       requiredDuringInsert: false);
@@ -648,14 +699,16 @@ class $FuelRecordsTable extends FuelRecords
   List<GeneratedColumn> get $columns => [
         id,
         vehicleId,
+        energyType,
         date,
-        fuelAmount,
-        totalPrice,
-        pricePerLiter,
+        quantity,
+        amount,
+        unitPrice,
         odometer,
-        isFullTank,
+        isFull,
         isLightOn,
         fuelType,
+        chargeMethod,
         stationName,
         notes,
         createdAt
@@ -664,9 +717,9 @@ class $FuelRecordsTable extends FuelRecords
   String get aliasedName => _alias ?? actualTableName;
   @override
   String get actualTableName => $name;
-  static const String $name = 'fuel_records';
+  static const String $name = 'energy_records';
   @override
-  VerificationContext validateIntegrity(Insertable<FuelRecord> instance,
+  VerificationContext validateIntegrity(Insertable<EnergyRecord> instance,
       {bool isInserting = false}) {
     final context = VerificationContext();
     final data = instance.toColumns(true);
@@ -679,35 +732,35 @@ class $FuelRecordsTable extends FuelRecords
     } else if (isInserting) {
       context.missing(_vehicleIdMeta);
     }
+    if (data.containsKey('energy_type')) {
+      context.handle(
+          _energyTypeMeta,
+          energyType.isAcceptableOrUnknown(
+              data['energy_type']!, _energyTypeMeta));
+    }
     if (data.containsKey('date')) {
       context.handle(
           _dateMeta, date.isAcceptableOrUnknown(data['date']!, _dateMeta));
     } else if (isInserting) {
       context.missing(_dateMeta);
     }
-    if (data.containsKey('fuel_amount')) {
-      context.handle(
-          _fuelAmountMeta,
-          fuelAmount.isAcceptableOrUnknown(
-              data['fuel_amount']!, _fuelAmountMeta));
+    if (data.containsKey('quantity')) {
+      context.handle(_quantityMeta,
+          quantity.isAcceptableOrUnknown(data['quantity']!, _quantityMeta));
     } else if (isInserting) {
-      context.missing(_fuelAmountMeta);
+      context.missing(_quantityMeta);
     }
-    if (data.containsKey('total_price')) {
-      context.handle(
-          _totalPriceMeta,
-          totalPrice.isAcceptableOrUnknown(
-              data['total_price']!, _totalPriceMeta));
+    if (data.containsKey('amount')) {
+      context.handle(_amountMeta,
+          amount.isAcceptableOrUnknown(data['amount']!, _amountMeta));
     } else if (isInserting) {
-      context.missing(_totalPriceMeta);
+      context.missing(_amountMeta);
     }
-    if (data.containsKey('price_per_liter')) {
-      context.handle(
-          _pricePerLiterMeta,
-          pricePerLiter.isAcceptableOrUnknown(
-              data['price_per_liter']!, _pricePerLiterMeta));
+    if (data.containsKey('unit_price')) {
+      context.handle(_unitPriceMeta,
+          unitPrice.isAcceptableOrUnknown(data['unit_price']!, _unitPriceMeta));
     } else if (isInserting) {
-      context.missing(_pricePerLiterMeta);
+      context.missing(_unitPriceMeta);
     }
     if (data.containsKey('odometer')) {
       context.handle(_odometerMeta,
@@ -715,11 +768,9 @@ class $FuelRecordsTable extends FuelRecords
     } else if (isInserting) {
       context.missing(_odometerMeta);
     }
-    if (data.containsKey('is_full_tank')) {
-      context.handle(
-          _isFullTankMeta,
-          isFullTank.isAcceptableOrUnknown(
-              data['is_full_tank']!, _isFullTankMeta));
+    if (data.containsKey('is_full')) {
+      context.handle(_isFullMeta,
+          isFull.isAcceptableOrUnknown(data['is_full']!, _isFullMeta));
     }
     if (data.containsKey('is_light_on')) {
       context.handle(
@@ -730,6 +781,12 @@ class $FuelRecordsTable extends FuelRecords
     if (data.containsKey('fuel_type')) {
       context.handle(_fuelTypeMeta,
           fuelType.isAcceptableOrUnknown(data['fuel_type']!, _fuelTypeMeta));
+    }
+    if (data.containsKey('charge_method')) {
+      context.handle(
+          _chargeMethodMeta,
+          chargeMethod.isAcceptableOrUnknown(
+              data['charge_method']!, _chargeMethodMeta));
     }
     if (data.containsKey('station_name')) {
       context.handle(
@@ -753,29 +810,33 @@ class $FuelRecordsTable extends FuelRecords
   @override
   Set<GeneratedColumn> get $primaryKey => {id};
   @override
-  FuelRecord map(Map<String, dynamic> data, {String? tablePrefix}) {
+  EnergyRecord map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
-    return FuelRecord(
+    return EnergyRecord(
       id: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}id'])!,
       vehicleId: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}vehicle_id'])!,
+      energyType: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}energy_type'])!,
       date: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}date'])!,
-      fuelAmount: attachedDatabase.typeMapping
-          .read(DriftSqlType.double, data['${effectivePrefix}fuel_amount'])!,
-      totalPrice: attachedDatabase.typeMapping
-          .read(DriftSqlType.double, data['${effectivePrefix}total_price'])!,
-      pricePerLiter: attachedDatabase.typeMapping.read(
-          DriftSqlType.double, data['${effectivePrefix}price_per_liter'])!,
+      quantity: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}quantity'])!,
+      amount: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}amount'])!,
+      unitPrice: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}unit_price'])!,
       odometer: attachedDatabase.typeMapping
           .read(DriftSqlType.double, data['${effectivePrefix}odometer'])!,
-      isFullTank: attachedDatabase.typeMapping
-          .read(DriftSqlType.bool, data['${effectivePrefix}is_full_tank'])!,
+      isFull: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}is_full'])!,
       isLightOn: attachedDatabase.typeMapping
           .read(DriftSqlType.bool, data['${effectivePrefix}is_light_on'])!,
       fuelType: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}fuel_type']),
+      chargeMethod: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}charge_method']),
       stationName: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}station_name']),
       notes: attachedDatabase.typeMapping
@@ -786,62 +847,73 @@ class $FuelRecordsTable extends FuelRecords
   }
 
   @override
-  $FuelRecordsTable createAlias(String alias) {
-    return $FuelRecordsTable(attachedDatabase, alias);
+  $EnergyRecordsTable createAlias(String alias) {
+    return $EnergyRecordsTable(attachedDatabase, alias);
   }
 }
 
-class FuelRecord extends DataClass implements Insertable<FuelRecord> {
-  /// 记录ID
+class EnergyRecord extends DataClass implements Insertable<EnergyRecord> {
   final int id;
 
-  /// 关联的车辆ID
-  /// references()表示这是一个外键,关联到Vehicles表的id字段
+  /// 关联车辆
   final int vehicleId;
 
-  /// 加油日期
+  /// 【v4 新增】这条记录是油还是电：gasoline / electric
+  /// 注意：这是记录的"事实属性"，录入时按当时车辆类型写入，车辆改类型不回改历史
+  final String energyType;
+
+  /// 日期（毫秒时间戳）
   final int date;
 
-  /// 加油量(升)
-  final double fuelAmount;
+  /// 数量：升（油）或 kWh（电）
+  /// 【v4 改名】原 fuelAmount
+  final double quantity;
 
-  /// 总金额(元)
-  final double totalPrice;
+  /// 总金额（元）
+  /// 【v4 改名】原 totalPrice
+  final double amount;
 
-  /// 单价(元/升)
-  final double pricePerLiter;
+  /// 单价：元/升 或 元/kWh
+  /// 【v4 改名】原 pricePerLiter
+  final double unitPrice;
 
-  /// 当前里程数(公里)
+  /// 当前里程（公里）
   final double odometer;
 
-  /// 是否加满油
-  final bool isFullTank;
+  /// 是否加满 / 充满（锚点标记，能耗算法靠它分段）
+  /// 【v4 改名】原 isFullTank
+  final bool isFull;
 
-  /// 是否油灯亮了（亮灯法计算油耗）
+  /// 是否油灯亮（仅油车，亮灯法锚点）
   final bool isLightOn;
 
-  /// 油品类型(92#/95#/98#/0#柴油等)
+  /// 油品标号（92#/95#/98#/柴油），仅油车
   final String? fuelType;
 
-  /// 加油站名称
+  /// 【v4 新增】充电方式：fast / slow / home，仅充电记录
+  final String? chargeMethod;
+
+  /// 加油站 / 充电站名称
   final String? stationName;
 
   /// 备注
   final String? notes;
 
-  /// 创建时间
+  /// 创建时间（毫秒时间戳）
   final int createdAt;
-  const FuelRecord(
+  const EnergyRecord(
       {required this.id,
       required this.vehicleId,
+      required this.energyType,
       required this.date,
-      required this.fuelAmount,
-      required this.totalPrice,
-      required this.pricePerLiter,
+      required this.quantity,
+      required this.amount,
+      required this.unitPrice,
       required this.odometer,
-      required this.isFullTank,
+      required this.isFull,
       required this.isLightOn,
       this.fuelType,
+      this.chargeMethod,
       this.stationName,
       this.notes,
       required this.createdAt});
@@ -850,15 +922,19 @@ class FuelRecord extends DataClass implements Insertable<FuelRecord> {
     final map = <String, Expression>{};
     map['id'] = Variable<int>(id);
     map['vehicle_id'] = Variable<int>(vehicleId);
+    map['energy_type'] = Variable<String>(energyType);
     map['date'] = Variable<int>(date);
-    map['fuel_amount'] = Variable<double>(fuelAmount);
-    map['total_price'] = Variable<double>(totalPrice);
-    map['price_per_liter'] = Variable<double>(pricePerLiter);
+    map['quantity'] = Variable<double>(quantity);
+    map['amount'] = Variable<double>(amount);
+    map['unit_price'] = Variable<double>(unitPrice);
     map['odometer'] = Variable<double>(odometer);
-    map['is_full_tank'] = Variable<bool>(isFullTank);
+    map['is_full'] = Variable<bool>(isFull);
     map['is_light_on'] = Variable<bool>(isLightOn);
     if (!nullToAbsent || fuelType != null) {
       map['fuel_type'] = Variable<String>(fuelType);
+    }
+    if (!nullToAbsent || chargeMethod != null) {
+      map['charge_method'] = Variable<String>(chargeMethod);
     }
     if (!nullToAbsent || stationName != null) {
       map['station_name'] = Variable<String>(stationName);
@@ -870,20 +946,24 @@ class FuelRecord extends DataClass implements Insertable<FuelRecord> {
     return map;
   }
 
-  FuelRecordsCompanion toCompanion(bool nullToAbsent) {
-    return FuelRecordsCompanion(
+  EnergyRecordsCompanion toCompanion(bool nullToAbsent) {
+    return EnergyRecordsCompanion(
       id: Value(id),
       vehicleId: Value(vehicleId),
+      energyType: Value(energyType),
       date: Value(date),
-      fuelAmount: Value(fuelAmount),
-      totalPrice: Value(totalPrice),
-      pricePerLiter: Value(pricePerLiter),
+      quantity: Value(quantity),
+      amount: Value(amount),
+      unitPrice: Value(unitPrice),
       odometer: Value(odometer),
-      isFullTank: Value(isFullTank),
+      isFull: Value(isFull),
       isLightOn: Value(isLightOn),
       fuelType: fuelType == null && nullToAbsent
           ? const Value.absent()
           : Value(fuelType),
+      chargeMethod: chargeMethod == null && nullToAbsent
+          ? const Value.absent()
+          : Value(chargeMethod),
       stationName: stationName == null && nullToAbsent
           ? const Value.absent()
           : Value(stationName),
@@ -893,20 +973,22 @@ class FuelRecord extends DataClass implements Insertable<FuelRecord> {
     );
   }
 
-  factory FuelRecord.fromJson(Map<String, dynamic> json,
+  factory EnergyRecord.fromJson(Map<String, dynamic> json,
       {ValueSerializer? serializer}) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
-    return FuelRecord(
+    return EnergyRecord(
       id: serializer.fromJson<int>(json['id']),
       vehicleId: serializer.fromJson<int>(json['vehicleId']),
+      energyType: serializer.fromJson<String>(json['energyType']),
       date: serializer.fromJson<int>(json['date']),
-      fuelAmount: serializer.fromJson<double>(json['fuelAmount']),
-      totalPrice: serializer.fromJson<double>(json['totalPrice']),
-      pricePerLiter: serializer.fromJson<double>(json['pricePerLiter']),
+      quantity: serializer.fromJson<double>(json['quantity']),
+      amount: serializer.fromJson<double>(json['amount']),
+      unitPrice: serializer.fromJson<double>(json['unitPrice']),
       odometer: serializer.fromJson<double>(json['odometer']),
-      isFullTank: serializer.fromJson<bool>(json['isFullTank']),
+      isFull: serializer.fromJson<bool>(json['isFull']),
       isLightOn: serializer.fromJson<bool>(json['isLightOn']),
       fuelType: serializer.fromJson<String?>(json['fuelType']),
+      chargeMethod: serializer.fromJson<String?>(json['chargeMethod']),
       stationName: serializer.fromJson<String?>(json['stationName']),
       notes: serializer.fromJson<String?>(json['notes']),
       createdAt: serializer.fromJson<int>(json['createdAt']),
@@ -918,66 +1000,73 @@ class FuelRecord extends DataClass implements Insertable<FuelRecord> {
     return <String, dynamic>{
       'id': serializer.toJson<int>(id),
       'vehicleId': serializer.toJson<int>(vehicleId),
+      'energyType': serializer.toJson<String>(energyType),
       'date': serializer.toJson<int>(date),
-      'fuelAmount': serializer.toJson<double>(fuelAmount),
-      'totalPrice': serializer.toJson<double>(totalPrice),
-      'pricePerLiter': serializer.toJson<double>(pricePerLiter),
+      'quantity': serializer.toJson<double>(quantity),
+      'amount': serializer.toJson<double>(amount),
+      'unitPrice': serializer.toJson<double>(unitPrice),
       'odometer': serializer.toJson<double>(odometer),
-      'isFullTank': serializer.toJson<bool>(isFullTank),
+      'isFull': serializer.toJson<bool>(isFull),
       'isLightOn': serializer.toJson<bool>(isLightOn),
       'fuelType': serializer.toJson<String?>(fuelType),
+      'chargeMethod': serializer.toJson<String?>(chargeMethod),
       'stationName': serializer.toJson<String?>(stationName),
       'notes': serializer.toJson<String?>(notes),
       'createdAt': serializer.toJson<int>(createdAt),
     };
   }
 
-  FuelRecord copyWith(
+  EnergyRecord copyWith(
           {int? id,
           int? vehicleId,
+          String? energyType,
           int? date,
-          double? fuelAmount,
-          double? totalPrice,
-          double? pricePerLiter,
+          double? quantity,
+          double? amount,
+          double? unitPrice,
           double? odometer,
-          bool? isFullTank,
+          bool? isFull,
           bool? isLightOn,
           Value<String?> fuelType = const Value.absent(),
+          Value<String?> chargeMethod = const Value.absent(),
           Value<String?> stationName = const Value.absent(),
           Value<String?> notes = const Value.absent(),
           int? createdAt}) =>
-      FuelRecord(
+      EnergyRecord(
         id: id ?? this.id,
         vehicleId: vehicleId ?? this.vehicleId,
+        energyType: energyType ?? this.energyType,
         date: date ?? this.date,
-        fuelAmount: fuelAmount ?? this.fuelAmount,
-        totalPrice: totalPrice ?? this.totalPrice,
-        pricePerLiter: pricePerLiter ?? this.pricePerLiter,
+        quantity: quantity ?? this.quantity,
+        amount: amount ?? this.amount,
+        unitPrice: unitPrice ?? this.unitPrice,
         odometer: odometer ?? this.odometer,
-        isFullTank: isFullTank ?? this.isFullTank,
+        isFull: isFull ?? this.isFull,
         isLightOn: isLightOn ?? this.isLightOn,
         fuelType: fuelType.present ? fuelType.value : this.fuelType,
+        chargeMethod:
+            chargeMethod.present ? chargeMethod.value : this.chargeMethod,
         stationName: stationName.present ? stationName.value : this.stationName,
         notes: notes.present ? notes.value : this.notes,
         createdAt: createdAt ?? this.createdAt,
       );
-  FuelRecord copyWithCompanion(FuelRecordsCompanion data) {
-    return FuelRecord(
+  EnergyRecord copyWithCompanion(EnergyRecordsCompanion data) {
+    return EnergyRecord(
       id: data.id.present ? data.id.value : this.id,
       vehicleId: data.vehicleId.present ? data.vehicleId.value : this.vehicleId,
+      energyType:
+          data.energyType.present ? data.energyType.value : this.energyType,
       date: data.date.present ? data.date.value : this.date,
-      fuelAmount:
-          data.fuelAmount.present ? data.fuelAmount.value : this.fuelAmount,
-      totalPrice:
-          data.totalPrice.present ? data.totalPrice.value : this.totalPrice,
-      pricePerLiter: data.pricePerLiter.present
-          ? data.pricePerLiter.value
-          : this.pricePerLiter,
+      quantity: data.quantity.present ? data.quantity.value : this.quantity,
+      amount: data.amount.present ? data.amount.value : this.amount,
+      unitPrice: data.unitPrice.present ? data.unitPrice.value : this.unitPrice,
       odometer: data.odometer.present ? data.odometer.value : this.odometer,
-      isFullTank:
-          data.isFullTank.present ? data.isFullTank.value : this.isFullTank,
+      isFull: data.isFull.present ? data.isFull.value : this.isFull,
       isLightOn: data.isLightOn.present ? data.isLightOn.value : this.isLightOn,
       fuelType: data.fuelType.present ? data.fuelType.value : this.fuelType,
+      chargeMethod: data.chargeMethod.present
+          ? data.chargeMethod.value
+          : this.chargeMethod,
       stationName:
           data.stationName.present ? data.stationName.value : this.stationName,
       notes: data.notes.present ? data.notes.value : this.notes,
@@ -987,17 +1076,19 @@ class FuelRecord extends DataClass implements Insertable<FuelRecord> {
 
   @override
   String toString() {
-    return (StringBuffer('FuelRecord(')
+    return (StringBuffer('EnergyRecord(')
           ..write('id: $id, ')
           ..write('vehicleId: $vehicleId, ')
+          ..write('energyType: $energyType, ')
           ..write('date: $date, ')
-          ..write('fuelAmount: $fuelAmount, ')
-          ..write('totalPrice: $totalPrice, ')
-          ..write('pricePerLiter: $pricePerLiter, ')
+          ..write('quantity: $quantity, ')
+          ..write('amount: $amount, ')
+          ..write('unitPrice: $unitPrice, ')
           ..write('odometer: $odometer, ')
-          ..write('isFullTank: $isFullTank, ')
+          ..write('isFull: $isFull, ')
           ..write('isLightOn: $isLightOn, ')
           ..write('fuelType: $fuelType, ')
+          ..write('chargeMethod: $chargeMethod, ')
           ..write('stationName: $stationName, ')
           ..write('notes: $notes, ')
           ..write('createdAt: $createdAt')
@@ -1009,97 +1100,109 @@ class FuelRecord extends DataClass implements Insertable<FuelRecord> {
   int get hashCode => Object.hash(
       id,
       vehicleId,
+      energyType,
       date,
-      fuelAmount,
-      totalPrice,
-      pricePerLiter,
+      quantity,
+      amount,
+      unitPrice,
       odometer,
-      isFullTank,
+      isFull,
       isLightOn,
       fuelType,
+      chargeMethod,
       stationName,
       notes,
       createdAt);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      (other is FuelRecord &&
+      (other is EnergyRecord &&
           other.id == this.id &&
           other.vehicleId == this.vehicleId &&
+          other.energyType == this.energyType &&
           other.date == this.date &&
-          other.fuelAmount == this.fuelAmount &&
-          other.totalPrice == this.totalPrice &&
-          other.pricePerLiter == this.pricePerLiter &&
+          other.quantity == this.quantity &&
+          other.amount == this.amount &&
+          other.unitPrice == this.unitPrice &&
           other.odometer == this.odometer &&
-          other.isFullTank == this.isFullTank &&
+          other.isFull == this.isFull &&
           other.isLightOn == this.isLightOn &&
           other.fuelType == this.fuelType &&
+          other.chargeMethod == this.chargeMethod &&
           other.stationName == this.stationName &&
           other.notes == this.notes &&
           other.createdAt == this.createdAt);
 }
 
-class FuelRecordsCompanion extends UpdateCompanion<FuelRecord> {
+class EnergyRecordsCompanion extends UpdateCompanion<EnergyRecord> {
   final Value<int> id;
   final Value<int> vehicleId;
+  final Value<String> energyType;
   final Value<int> date;
-  final Value<double> fuelAmount;
-  final Value<double> totalPrice;
-  final Value<double> pricePerLiter;
+  final Value<double> quantity;
+  final Value<double> amount;
+  final Value<double> unitPrice;
   final Value<double> odometer;
-  final Value<bool> isFullTank;
+  final Value<bool> isFull;
   final Value<bool> isLightOn;
   final Value<String?> fuelType;
+  final Value<String?> chargeMethod;
   final Value<String?> stationName;
   final Value<String?> notes;
   final Value<int> createdAt;
-  const FuelRecordsCompanion({
+  const EnergyRecordsCompanion({
     this.id = const Value.absent(),
     this.vehicleId = const Value.absent(),
+    this.energyType = const Value.absent(),
     this.date = const Value.absent(),
-    this.fuelAmount = const Value.absent(),
-    this.totalPrice = const Value.absent(),
-    this.pricePerLiter = const Value.absent(),
+    this.quantity = const Value.absent(),
+    this.amount = const Value.absent(),
+    this.unitPrice = const Value.absent(),
     this.odometer = const Value.absent(),
-    this.isFullTank = const Value.absent(),
+    this.isFull = const Value.absent(),
     this.isLightOn = const Value.absent(),
     this.fuelType = const Value.absent(),
+    this.chargeMethod = const Value.absent(),
     this.stationName = const Value.absent(),
     this.notes = const Value.absent(),
     this.createdAt = const Value.absent(),
   });
-  FuelRecordsCompanion.insert({
+  EnergyRecordsCompanion.insert({
     this.id = const Value.absent(),
     required int vehicleId,
+    this.energyType = const Value.absent(),
     required int date,
-    required double fuelAmount,
-    required double totalPrice,
-    required double pricePerLiter,
+    required double quantity,
+    required double amount,
+    required double unitPrice,
     required double odometer,
-    this.isFullTank = const Value.absent(),
+    this.isFull = const Value.absent(),
     this.isLightOn = const Value.absent(),
     this.fuelType = const Value.absent(),
+    this.chargeMethod = const Value.absent(),
     this.stationName = const Value.absent(),
     this.notes = const Value.absent(),
     required int createdAt,
   })  : vehicleId = Value(vehicleId),
         date = Value(date),
-        fuelAmount = Value(fuelAmount),
-        totalPrice = Value(totalPrice),
-        pricePerLiter = Value(pricePerLiter),
+        quantity = Value(quantity),
+        amount = Value(amount),
+        unitPrice = Value(unitPrice),
         odometer = Value(odometer),
         createdAt = Value(createdAt);
-  static Insertable<FuelRecord> custom({
+  static Insertable<EnergyRecord> custom({
     Expression<int>? id,
     Expression<int>? vehicleId,
+    Expression<String>? energyType,
     Expression<int>? date,
-    Expression<double>? fuelAmount,
-    Expression<double>? totalPrice,
-    Expression<double>? pricePerLiter,
+    Expression<double>? quantity,
+    Expression<double>? amount,
+    Expression<double>? unitPrice,
     Expression<double>? odometer,
-    Expression<bool>? isFullTank,
+    Expression<bool>? isFull,
     Expression<bool>? isLightOn,
     Expression<String>? fuelType,
+    Expression<String>? chargeMethod,
     Expression<String>? stationName,
     Expression<String>? notes,
     Expression<int>? createdAt,
@@ -1107,46 +1210,589 @@ class FuelRecordsCompanion extends UpdateCompanion<FuelRecord> {
     return RawValuesInsertable({
       if (id != null) 'id': id,
       if (vehicleId != null) 'vehicle_id': vehicleId,
+      if (energyType != null) 'energy_type': energyType,
       if (date != null) 'date': date,
-      if (fuelAmount != null) 'fuel_amount': fuelAmount,
-      if (totalPrice != null) 'total_price': totalPrice,
-      if (pricePerLiter != null) 'price_per_liter': pricePerLiter,
+      if (quantity != null) 'quantity': quantity,
+      if (amount != null) 'amount': amount,
+      if (unitPrice != null) 'unit_price': unitPrice,
       if (odometer != null) 'odometer': odometer,
-      if (isFullTank != null) 'is_full_tank': isFullTank,
+      if (isFull != null) 'is_full': isFull,
       if (isLightOn != null) 'is_light_on': isLightOn,
       if (fuelType != null) 'fuel_type': fuelType,
+      if (chargeMethod != null) 'charge_method': chargeMethod,
       if (stationName != null) 'station_name': stationName,
       if (notes != null) 'notes': notes,
       if (createdAt != null) 'created_at': createdAt,
     });
   }
 
-  FuelRecordsCompanion copyWith(
+  EnergyRecordsCompanion copyWith(
       {Value<int>? id,
       Value<int>? vehicleId,
+      Value<String>? energyType,
       Value<int>? date,
-      Value<double>? fuelAmount,
-      Value<double>? totalPrice,
-      Value<double>? pricePerLiter,
+      Value<double>? quantity,
+      Value<double>? amount,
+      Value<double>? unitPrice,
       Value<double>? odometer,
-      Value<bool>? isFullTank,
+      Value<bool>? isFull,
       Value<bool>? isLightOn,
       Value<String?>? fuelType,
+      Value<String?>? chargeMethod,
       Value<String?>? stationName,
       Value<String?>? notes,
       Value<int>? createdAt}) {
-    return FuelRecordsCompanion(
+    return EnergyRecordsCompanion(
+      id: id ?? this.id,
+      vehicleId: vehicleId ?? this.vehicleId,
+      energyType: energyType ?? this.energyType,
+      date: date ?? this.date,
+      quantity: quantity ?? this.quantity,
+      amount: amount ?? this.amount,
+      unitPrice: unitPrice ?? this.unitPrice,
+      odometer: odometer ?? this.odometer,
+      isFull: isFull ?? this.isFull,
+      isLightOn: isLightOn ?? this.isLightOn,
+      fuelType: fuelType ?? this.fuelType,
+      chargeMethod: chargeMethod ?? this.chargeMethod,
+      stationName: stationName ?? this.stationName,
+      notes: notes ?? this.notes,
+      createdAt: createdAt ?? this.createdAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (vehicleId.present) {
+      map['vehicle_id'] = Variable<int>(vehicleId.value);
+    }
+    if (energyType.present) {
+      map['energy_type'] = Variable<String>(energyType.value);
+    }
+    if (date.present) {
+      map['date'] = Variable<int>(date.value);
+    }
+    if (quantity.present) {
+      map['quantity'] = Variable<double>(quantity.value);
+    }
+    if (amount.present) {
+      map['amount'] = Variable<double>(amount.value);
+    }
+    if (unitPrice.present) {
+      map['unit_price'] = Variable<double>(unitPrice.value);
+    }
+    if (odometer.present) {
+      map['odometer'] = Variable<double>(odometer.value);
+    }
+    if (isFull.present) {
+      map['is_full'] = Variable<bool>(isFull.value);
+    }
+    if (isLightOn.present) {
+      map['is_light_on'] = Variable<bool>(isLightOn.value);
+    }
+    if (fuelType.present) {
+      map['fuel_type'] = Variable<String>(fuelType.value);
+    }
+    if (chargeMethod.present) {
+      map['charge_method'] = Variable<String>(chargeMethod.value);
+    }
+    if (stationName.present) {
+      map['station_name'] = Variable<String>(stationName.value);
+    }
+    if (notes.present) {
+      map['notes'] = Variable<String>(notes.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<int>(createdAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('EnergyRecordsCompanion(')
+          ..write('id: $id, ')
+          ..write('vehicleId: $vehicleId, ')
+          ..write('energyType: $energyType, ')
+          ..write('date: $date, ')
+          ..write('quantity: $quantity, ')
+          ..write('amount: $amount, ')
+          ..write('unitPrice: $unitPrice, ')
+          ..write('odometer: $odometer, ')
+          ..write('isFull: $isFull, ')
+          ..write('isLightOn: $isLightOn, ')
+          ..write('fuelType: $fuelType, ')
+          ..write('chargeMethod: $chargeMethod, ')
+          ..write('stationName: $stationName, ')
+          ..write('notes: $notes, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $ExpensesTable extends Expenses with TableInfo<$ExpensesTable, Expense> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ExpensesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+      'id', aliasedName, false,
+      hasAutoIncrement: true,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('PRIMARY KEY AUTOINCREMENT'));
+  static const VerificationMeta _vehicleIdMeta =
+      const VerificationMeta('vehicleId');
+  @override
+  late final GeneratedColumn<int> vehicleId = GeneratedColumn<int>(
+      'vehicle_id', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: true,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('REFERENCES vehicles (id)'));
+  static const VerificationMeta _dateMeta = const VerificationMeta('date');
+  @override
+  late final GeneratedColumn<int> date = GeneratedColumn<int>(
+      'date', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  static const VerificationMeta _kindMeta = const VerificationMeta('kind');
+  @override
+  late final GeneratedColumn<String> kind = GeneratedColumn<String>(
+      'kind', aliasedName, false,
+      additionalChecks: GeneratedColumn.checkTextLength(maxTextLength: 20),
+      type: DriftSqlType.string,
+      requiredDuringInsert: true);
+  static const VerificationMeta _categoryMeta =
+      const VerificationMeta('category');
+  @override
+  late final GeneratedColumn<String> category = GeneratedColumn<String>(
+      'category', aliasedName, false,
+      additionalChecks: GeneratedColumn.checkTextLength(maxTextLength: 30),
+      type: DriftSqlType.string,
+      requiredDuringInsert: true);
+  static const VerificationMeta _itemsMeta = const VerificationMeta('items');
+  @override
+  late final GeneratedColumn<String> items = GeneratedColumn<String>(
+      'items', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _mileageMeta =
+      const VerificationMeta('mileage');
+  @override
+  late final GeneratedColumn<double> mileage = GeneratedColumn<double>(
+      'mileage', aliasedName, true,
+      type: DriftSqlType.double, requiredDuringInsert: false);
+  static const VerificationMeta _amountMeta = const VerificationMeta('amount');
+  @override
+  late final GeneratedColumn<double> amount = GeneratedColumn<double>(
+      'amount', aliasedName, false,
+      type: DriftSqlType.double, requiredDuringInsert: true);
+  static const VerificationMeta _notesMeta = const VerificationMeta('notes');
+  @override
+  late final GeneratedColumn<String> notes = GeneratedColumn<String>(
+      'notes', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _createdAtMeta =
+      const VerificationMeta('createdAt');
+  @override
+  late final GeneratedColumn<int> createdAt = GeneratedColumn<int>(
+      'created_at', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  @override
+  List<GeneratedColumn> get $columns => [
+        id,
+        vehicleId,
+        date,
+        kind,
+        category,
+        items,
+        mileage,
+        amount,
+        notes,
+        createdAt
+      ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'expenses';
+  @override
+  VerificationContext validateIntegrity(Insertable<Expense> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('vehicle_id')) {
+      context.handle(_vehicleIdMeta,
+          vehicleId.isAcceptableOrUnknown(data['vehicle_id']!, _vehicleIdMeta));
+    } else if (isInserting) {
+      context.missing(_vehicleIdMeta);
+    }
+    if (data.containsKey('date')) {
+      context.handle(
+          _dateMeta, date.isAcceptableOrUnknown(data['date']!, _dateMeta));
+    } else if (isInserting) {
+      context.missing(_dateMeta);
+    }
+    if (data.containsKey('kind')) {
+      context.handle(
+          _kindMeta, kind.isAcceptableOrUnknown(data['kind']!, _kindMeta));
+    } else if (isInserting) {
+      context.missing(_kindMeta);
+    }
+    if (data.containsKey('category')) {
+      context.handle(_categoryMeta,
+          category.isAcceptableOrUnknown(data['category']!, _categoryMeta));
+    } else if (isInserting) {
+      context.missing(_categoryMeta);
+    }
+    if (data.containsKey('items')) {
+      context.handle(
+          _itemsMeta, items.isAcceptableOrUnknown(data['items']!, _itemsMeta));
+    }
+    if (data.containsKey('mileage')) {
+      context.handle(_mileageMeta,
+          mileage.isAcceptableOrUnknown(data['mileage']!, _mileageMeta));
+    }
+    if (data.containsKey('amount')) {
+      context.handle(_amountMeta,
+          amount.isAcceptableOrUnknown(data['amount']!, _amountMeta));
+    } else if (isInserting) {
+      context.missing(_amountMeta);
+    }
+    if (data.containsKey('notes')) {
+      context.handle(
+          _notesMeta, notes.isAcceptableOrUnknown(data['notes']!, _notesMeta));
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(_createdAtMeta,
+          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  Expense map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return Expense(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}id'])!,
+      vehicleId: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}vehicle_id'])!,
+      date: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}date'])!,
+      kind: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}kind'])!,
+      category: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}category'])!,
+      items: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}items']),
+      mileage: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}mileage']),
+      amount: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}amount'])!,
+      notes: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}notes']),
+      createdAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}created_at'])!,
+    );
+  }
+
+  @override
+  $ExpensesTable createAlias(String alias) {
+    return $ExpensesTable(attachedDatabase, alias);
+  }
+}
+
+class Expense extends DataClass implements Insertable<Expense> {
+  final int id;
+
+  /// 关联车辆
+  final int vehicleId;
+
+  /// 日期（毫秒时间戳）
+  final int date;
+
+  /// 判别列：maintenance（保养）/ other（费用）
+  final String kind;
+
+  /// 细分类型
+  /// - kind=maintenance 时：机油 / 刹车片 / 轮胎 ...（见 kMaintenanceItems）
+  /// - kind=other 时：保险 / 停车费 / 维修 ...（见 kExpenseCategories）
+  final String category;
+
+  /// 保养项目，逗号分隔（仅保养用）
+  final String? items;
+
+  /// 当时里程（仅保养用）
+  final double? mileage;
+
+  /// 金额
+  final double amount;
+
+  /// 备注
+  final String? notes;
+
+  /// 创建时间（毫秒时间戳）
+  final int createdAt;
+  const Expense(
+      {required this.id,
+      required this.vehicleId,
+      required this.date,
+      required this.kind,
+      required this.category,
+      this.items,
+      this.mileage,
+      required this.amount,
+      this.notes,
+      required this.createdAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['vehicle_id'] = Variable<int>(vehicleId);
+    map['date'] = Variable<int>(date);
+    map['kind'] = Variable<String>(kind);
+    map['category'] = Variable<String>(category);
+    if (!nullToAbsent || items != null) {
+      map['items'] = Variable<String>(items);
+    }
+    if (!nullToAbsent || mileage != null) {
+      map['mileage'] = Variable<double>(mileage);
+    }
+    map['amount'] = Variable<double>(amount);
+    if (!nullToAbsent || notes != null) {
+      map['notes'] = Variable<String>(notes);
+    }
+    map['created_at'] = Variable<int>(createdAt);
+    return map;
+  }
+
+  ExpensesCompanion toCompanion(bool nullToAbsent) {
+    return ExpensesCompanion(
+      id: Value(id),
+      vehicleId: Value(vehicleId),
+      date: Value(date),
+      kind: Value(kind),
+      category: Value(category),
+      items:
+          items == null && nullToAbsent ? const Value.absent() : Value(items),
+      mileage: mileage == null && nullToAbsent
+          ? const Value.absent()
+          : Value(mileage),
+      amount: Value(amount),
+      notes:
+          notes == null && nullToAbsent ? const Value.absent() : Value(notes),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory Expense.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return Expense(
+      id: serializer.fromJson<int>(json['id']),
+      vehicleId: serializer.fromJson<int>(json['vehicleId']),
+      date: serializer.fromJson<int>(json['date']),
+      kind: serializer.fromJson<String>(json['kind']),
+      category: serializer.fromJson<String>(json['category']),
+      items: serializer.fromJson<String?>(json['items']),
+      mileage: serializer.fromJson<double?>(json['mileage']),
+      amount: serializer.fromJson<double>(json['amount']),
+      notes: serializer.fromJson<String?>(json['notes']),
+      createdAt: serializer.fromJson<int>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'vehicleId': serializer.toJson<int>(vehicleId),
+      'date': serializer.toJson<int>(date),
+      'kind': serializer.toJson<String>(kind),
+      'category': serializer.toJson<String>(category),
+      'items': serializer.toJson<String?>(items),
+      'mileage': serializer.toJson<double?>(mileage),
+      'amount': serializer.toJson<double>(amount),
+      'notes': serializer.toJson<String?>(notes),
+      'createdAt': serializer.toJson<int>(createdAt),
+    };
+  }
+
+  Expense copyWith(
+          {int? id,
+          int? vehicleId,
+          int? date,
+          String? kind,
+          String? category,
+          Value<String?> items = const Value.absent(),
+          Value<double?> mileage = const Value.absent(),
+          double? amount,
+          Value<String?> notes = const Value.absent(),
+          int? createdAt}) =>
+      Expense(
+        id: id ?? this.id,
+        vehicleId: vehicleId ?? this.vehicleId,
+        date: date ?? this.date,
+        kind: kind ?? this.kind,
+        category: category ?? this.category,
+        items: items.present ? items.value : this.items,
+        mileage: mileage.present ? mileage.value : this.mileage,
+        amount: amount ?? this.amount,
+        notes: notes.present ? notes.value : this.notes,
+        createdAt: createdAt ?? this.createdAt,
+      );
+  Expense copyWithCompanion(ExpensesCompanion data) {
+    return Expense(
+      id: data.id.present ? data.id.value : this.id,
+      vehicleId: data.vehicleId.present ? data.vehicleId.value : this.vehicleId,
+      date: data.date.present ? data.date.value : this.date,
+      kind: data.kind.present ? data.kind.value : this.kind,
+      category: data.category.present ? data.category.value : this.category,
+      items: data.items.present ? data.items.value : this.items,
+      mileage: data.mileage.present ? data.mileage.value : this.mileage,
+      amount: data.amount.present ? data.amount.value : this.amount,
+      notes: data.notes.present ? data.notes.value : this.notes,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('Expense(')
+          ..write('id: $id, ')
+          ..write('vehicleId: $vehicleId, ')
+          ..write('date: $date, ')
+          ..write('kind: $kind, ')
+          ..write('category: $category, ')
+          ..write('items: $items, ')
+          ..write('mileage: $mileage, ')
+          ..write('amount: $amount, ')
+          ..write('notes: $notes, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, vehicleId, date, kind, category, items,
+      mileage, amount, notes, createdAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is Expense &&
+          other.id == this.id &&
+          other.vehicleId == this.vehicleId &&
+          other.date == this.date &&
+          other.kind == this.kind &&
+          other.category == this.category &&
+          other.items == this.items &&
+          other.mileage == this.mileage &&
+          other.amount == this.amount &&
+          other.notes == this.notes &&
+          other.createdAt == this.createdAt);
+}
+
+class ExpensesCompanion extends UpdateCompanion<Expense> {
+  final Value<int> id;
+  final Value<int> vehicleId;
+  final Value<int> date;
+  final Value<String> kind;
+  final Value<String> category;
+  final Value<String?> items;
+  final Value<double?> mileage;
+  final Value<double> amount;
+  final Value<String?> notes;
+  final Value<int> createdAt;
+  const ExpensesCompanion({
+    this.id = const Value.absent(),
+    this.vehicleId = const Value.absent(),
+    this.date = const Value.absent(),
+    this.kind = const Value.absent(),
+    this.category = const Value.absent(),
+    this.items = const Value.absent(),
+    this.mileage = const Value.absent(),
+    this.amount = const Value.absent(),
+    this.notes = const Value.absent(),
+    this.createdAt = const Value.absent(),
+  });
+  ExpensesCompanion.insert({
+    this.id = const Value.absent(),
+    required int vehicleId,
+    required int date,
+    required String kind,
+    required String category,
+    this.items = const Value.absent(),
+    this.mileage = const Value.absent(),
+    required double amount,
+    this.notes = const Value.absent(),
+    required int createdAt,
+  })  : vehicleId = Value(vehicleId),
+        date = Value(date),
+        kind = Value(kind),
+        category = Value(category),
+        amount = Value(amount),
+        createdAt = Value(createdAt);
+  static Insertable<Expense> custom({
+    Expression<int>? id,
+    Expression<int>? vehicleId,
+    Expression<int>? date,
+    Expression<String>? kind,
+    Expression<String>? category,
+    Expression<String>? items,
+    Expression<double>? mileage,
+    Expression<double>? amount,
+    Expression<String>? notes,
+    Expression<int>? createdAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (vehicleId != null) 'vehicle_id': vehicleId,
+      if (date != null) 'date': date,
+      if (kind != null) 'kind': kind,
+      if (category != null) 'category': category,
+      if (items != null) 'items': items,
+      if (mileage != null) 'mileage': mileage,
+      if (amount != null) 'amount': amount,
+      if (notes != null) 'notes': notes,
+      if (createdAt != null) 'created_at': createdAt,
+    });
+  }
+
+  ExpensesCompanion copyWith(
+      {Value<int>? id,
+      Value<int>? vehicleId,
+      Value<int>? date,
+      Value<String>? kind,
+      Value<String>? category,
+      Value<String?>? items,
+      Value<double?>? mileage,
+      Value<double>? amount,
+      Value<String?>? notes,
+      Value<int>? createdAt}) {
+    return ExpensesCompanion(
       id: id ?? this.id,
       vehicleId: vehicleId ?? this.vehicleId,
       date: date ?? this.date,
-      fuelAmount: fuelAmount ?? this.fuelAmount,
-      totalPrice: totalPrice ?? this.totalPrice,
-      pricePerLiter: pricePerLiter ?? this.pricePerLiter,
-      odometer: odometer ?? this.odometer,
-      isFullTank: isFullTank ?? this.isFullTank,
-      isLightOn: isLightOn ?? this.isLightOn,
-      fuelType: fuelType ?? this.fuelType,
-      stationName: stationName ?? this.stationName,
+      kind: kind ?? this.kind,
+      category: category ?? this.category,
+      items: items ?? this.items,
+      mileage: mileage ?? this.mileage,
+      amount: amount ?? this.amount,
       notes: notes ?? this.notes,
       createdAt: createdAt ?? this.createdAt,
     );
@@ -1164,29 +1810,20 @@ class FuelRecordsCompanion extends UpdateCompanion<FuelRecord> {
     if (date.present) {
       map['date'] = Variable<int>(date.value);
     }
-    if (fuelAmount.present) {
-      map['fuel_amount'] = Variable<double>(fuelAmount.value);
+    if (kind.present) {
+      map['kind'] = Variable<String>(kind.value);
     }
-    if (totalPrice.present) {
-      map['total_price'] = Variable<double>(totalPrice.value);
+    if (category.present) {
+      map['category'] = Variable<String>(category.value);
     }
-    if (pricePerLiter.present) {
-      map['price_per_liter'] = Variable<double>(pricePerLiter.value);
+    if (items.present) {
+      map['items'] = Variable<String>(items.value);
     }
-    if (odometer.present) {
-      map['odometer'] = Variable<double>(odometer.value);
+    if (mileage.present) {
+      map['mileage'] = Variable<double>(mileage.value);
     }
-    if (isFullTank.present) {
-      map['is_full_tank'] = Variable<bool>(isFullTank.value);
-    }
-    if (isLightOn.present) {
-      map['is_light_on'] = Variable<bool>(isLightOn.value);
-    }
-    if (fuelType.present) {
-      map['fuel_type'] = Variable<String>(fuelType.value);
-    }
-    if (stationName.present) {
-      map['station_name'] = Variable<String>(stationName.value);
+    if (amount.present) {
+      map['amount'] = Variable<double>(amount.value);
     }
     if (notes.present) {
       map['notes'] = Variable<String>(notes.value);
@@ -1199,18 +1836,15 @@ class FuelRecordsCompanion extends UpdateCompanion<FuelRecord> {
 
   @override
   String toString() {
-    return (StringBuffer('FuelRecordsCompanion(')
+    return (StringBuffer('ExpensesCompanion(')
           ..write('id: $id, ')
           ..write('vehicleId: $vehicleId, ')
           ..write('date: $date, ')
-          ..write('fuelAmount: $fuelAmount, ')
-          ..write('totalPrice: $totalPrice, ')
-          ..write('pricePerLiter: $pricePerLiter, ')
-          ..write('odometer: $odometer, ')
-          ..write('isFullTank: $isFullTank, ')
-          ..write('isLightOn: $isLightOn, ')
-          ..write('fuelType: $fuelType, ')
-          ..write('stationName: $stationName, ')
+          ..write('kind: $kind, ')
+          ..write('category: $category, ')
+          ..write('items: $items, ')
+          ..write('mileage: $mileage, ')
+          ..write('amount: $amount, ')
           ..write('notes: $notes, ')
           ..write('createdAt: $createdAt')
           ..write(')'))
@@ -1223,12 +1857,14 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase.connect(DatabaseConnection c) : super.connect(c);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
   late final $VehiclesTable vehicles = $VehiclesTable(this);
-  late final $FuelRecordsTable fuelRecords = $FuelRecordsTable(this);
+  late final $EnergyRecordsTable energyRecords = $EnergyRecordsTable(this);
+  late final $ExpensesTable expenses = $ExpensesTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
   @override
-  List<DatabaseSchemaEntity> get allSchemaEntities => [vehicles, fuelRecords];
+  List<DatabaseSchemaEntity> get allSchemaEntities =>
+      [vehicles, energyRecords, expenses];
 }
 
 typedef $$VehiclesTableCreateCompanionBuilder = VehiclesCompanion Function({
@@ -1240,6 +1876,7 @@ typedef $$VehiclesTableCreateCompanionBuilder = VehiclesCompanion Function({
   Value<String?> notes,
   Value<String?> vehicleType,
   Value<bool> isDefault,
+  Value<String> energyType,
   required int createdAt,
   required int updatedAt,
 });
@@ -1252,6 +1889,7 @@ typedef $$VehiclesTableUpdateCompanionBuilder = VehiclesCompanion Function({
   Value<String?> notes,
   Value<String?> vehicleType,
   Value<bool> isDefault,
+  Value<String> energyType,
   Value<int> createdAt,
   Value<int> updatedAt,
 });
@@ -1260,17 +1898,32 @@ final class $$VehiclesTableReferences
     extends BaseReferences<_$AppDatabase, $VehiclesTable, Vehicle> {
   $$VehiclesTableReferences(super.$_db, super.$_table, super.$_typedResult);
 
-  static MultiTypedResultKey<$FuelRecordsTable, List<FuelRecord>>
-      _fuelRecordsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
-          db.fuelRecords,
-          aliasName:
-              $_aliasNameGenerator(db.vehicles.id, db.fuelRecords.vehicleId));
+  static MultiTypedResultKey<$EnergyRecordsTable, List<EnergyRecord>>
+      _energyRecordsRefsTable(_$AppDatabase db) =>
+          MultiTypedResultKey.fromTable(db.energyRecords,
+              aliasName: $_aliasNameGenerator(
+                  db.vehicles.id, db.energyRecords.vehicleId));
 
-  $$FuelRecordsTableProcessedTableManager get fuelRecordsRefs {
-    final manager = $$FuelRecordsTableTableManager($_db, $_db.fuelRecords)
+  $$EnergyRecordsTableProcessedTableManager get energyRecordsRefs {
+    final manager = $$EnergyRecordsTableTableManager($_db, $_db.energyRecords)
         .filter((f) => f.vehicleId.id($_item.id));
 
-    final cache = $_typedResult.readTableOrNull(_fuelRecordsRefsTable($_db));
+    final cache = $_typedResult.readTableOrNull(_energyRecordsRefsTable($_db));
+    return ProcessedTableManager(
+        manager.$state.copyWith(prefetchedData: cache));
+  }
+
+  static MultiTypedResultKey<$ExpensesTable, List<Expense>> _expensesRefsTable(
+          _$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(db.expenses,
+          aliasName:
+              $_aliasNameGenerator(db.vehicles.id, db.expenses.vehicleId));
+
+  $$ExpensesTableProcessedTableManager get expensesRefs {
+    final manager = $$ExpensesTableTableManager($_db, $_db.expenses)
+        .filter((f) => f.vehicleId.id($_item.id));
+
+    final cache = $_typedResult.readTableOrNull(_expensesRefsTable($_db));
     return ProcessedTableManager(
         manager.$state.copyWith(prefetchedData: cache));
   }
@@ -1309,25 +1962,49 @@ class $$VehiclesTableFilterComposer
   ColumnFilters<bool> get isDefault => $composableBuilder(
       column: $table.isDefault, builder: (column) => ColumnFilters(column));
 
+  ColumnFilters<String> get energyType => $composableBuilder(
+      column: $table.energyType, builder: (column) => ColumnFilters(column));
+
   ColumnFilters<int> get createdAt => $composableBuilder(
       column: $table.createdAt, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<int> get updatedAt => $composableBuilder(
       column: $table.updatedAt, builder: (column) => ColumnFilters(column));
 
-  Expression<bool> fuelRecordsRefs(
-      Expression<bool> Function($$FuelRecordsTableFilterComposer f) f) {
-    final $$FuelRecordsTableFilterComposer composer = $composerBuilder(
+  Expression<bool> energyRecordsRefs(
+      Expression<bool> Function($$EnergyRecordsTableFilterComposer f) f) {
+    final $$EnergyRecordsTableFilterComposer composer = $composerBuilder(
         composer: this,
         getCurrentColumn: (t) => t.id,
-        referencedTable: $db.fuelRecords,
+        referencedTable: $db.energyRecords,
         getReferencedColumn: (t) => t.vehicleId,
         builder: (joinBuilder,
                 {$addJoinBuilderToRootComposer,
                 $removeJoinBuilderFromRootComposer}) =>
-            $$FuelRecordsTableFilterComposer(
+            $$EnergyRecordsTableFilterComposer(
               $db: $db,
-              $table: $db.fuelRecords,
+              $table: $db.energyRecords,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return f(composer);
+  }
+
+  Expression<bool> expensesRefs(
+      Expression<bool> Function($$ExpensesTableFilterComposer f) f) {
+    final $$ExpensesTableFilterComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.id,
+        referencedTable: $db.expenses,
+        getReferencedColumn: (t) => t.vehicleId,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$ExpensesTableFilterComposer(
+              $db: $db,
+              $table: $db.expenses,
               $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
               joinBuilder: joinBuilder,
               $removeJoinBuilderFromRootComposer:
@@ -1371,6 +2048,9 @@ class $$VehiclesTableOrderingComposer
   ColumnOrderings<bool> get isDefault => $composableBuilder(
       column: $table.isDefault, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get energyType => $composableBuilder(
+      column: $table.energyType, builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<int> get createdAt => $composableBuilder(
       column: $table.createdAt, builder: (column) => ColumnOrderings(column));
 
@@ -1411,25 +2091,49 @@ class $$VehiclesTableAnnotationComposer
   GeneratedColumn<bool> get isDefault =>
       $composableBuilder(column: $table.isDefault, builder: (column) => column);
 
+  GeneratedColumn<String> get energyType => $composableBuilder(
+      column: $table.energyType, builder: (column) => column);
+
   GeneratedColumn<int> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
 
   GeneratedColumn<int> get updatedAt =>
       $composableBuilder(column: $table.updatedAt, builder: (column) => column);
 
-  Expression<T> fuelRecordsRefs<T extends Object>(
-      Expression<T> Function($$FuelRecordsTableAnnotationComposer a) f) {
-    final $$FuelRecordsTableAnnotationComposer composer = $composerBuilder(
+  Expression<T> energyRecordsRefs<T extends Object>(
+      Expression<T> Function($$EnergyRecordsTableAnnotationComposer a) f) {
+    final $$EnergyRecordsTableAnnotationComposer composer = $composerBuilder(
         composer: this,
         getCurrentColumn: (t) => t.id,
-        referencedTable: $db.fuelRecords,
+        referencedTable: $db.energyRecords,
         getReferencedColumn: (t) => t.vehicleId,
         builder: (joinBuilder,
                 {$addJoinBuilderToRootComposer,
                 $removeJoinBuilderFromRootComposer}) =>
-            $$FuelRecordsTableAnnotationComposer(
+            $$EnergyRecordsTableAnnotationComposer(
               $db: $db,
-              $table: $db.fuelRecords,
+              $table: $db.energyRecords,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return f(composer);
+  }
+
+  Expression<T> expensesRefs<T extends Object>(
+      Expression<T> Function($$ExpensesTableAnnotationComposer a) f) {
+    final $$ExpensesTableAnnotationComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.id,
+        referencedTable: $db.expenses,
+        getReferencedColumn: (t) => t.vehicleId,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$ExpensesTableAnnotationComposer(
+              $db: $db,
+              $table: $db.expenses,
               $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
               joinBuilder: joinBuilder,
               $removeJoinBuilderFromRootComposer:
@@ -1450,7 +2154,7 @@ class $$VehiclesTableTableManager extends RootTableManager<
     $$VehiclesTableUpdateCompanionBuilder,
     (Vehicle, $$VehiclesTableReferences),
     Vehicle,
-    PrefetchHooks Function({bool fuelRecordsRefs})> {
+    PrefetchHooks Function({bool energyRecordsRefs, bool expensesRefs})> {
   $$VehiclesTableTableManager(_$AppDatabase db, $VehiclesTable table)
       : super(TableManagerState(
           db: db,
@@ -1470,6 +2174,7 @@ class $$VehiclesTableTableManager extends RootTableManager<
             Value<String?> notes = const Value.absent(),
             Value<String?> vehicleType = const Value.absent(),
             Value<bool> isDefault = const Value.absent(),
+            Value<String> energyType = const Value.absent(),
             Value<int> createdAt = const Value.absent(),
             Value<int> updatedAt = const Value.absent(),
           }) =>
@@ -1482,6 +2187,7 @@ class $$VehiclesTableTableManager extends RootTableManager<
             notes: notes,
             vehicleType: vehicleType,
             isDefault: isDefault,
+            energyType: energyType,
             createdAt: createdAt,
             updatedAt: updatedAt,
           ),
@@ -1494,6 +2200,7 @@ class $$VehiclesTableTableManager extends RootTableManager<
             Value<String?> notes = const Value.absent(),
             Value<String?> vehicleType = const Value.absent(),
             Value<bool> isDefault = const Value.absent(),
+            Value<String> energyType = const Value.absent(),
             required int createdAt,
             required int updatedAt,
           }) =>
@@ -1506,6 +2213,7 @@ class $$VehiclesTableTableManager extends RootTableManager<
             notes: notes,
             vehicleType: vehicleType,
             isDefault: isDefault,
+            energyType: energyType,
             createdAt: createdAt,
             updatedAt: updatedAt,
           ),
@@ -1513,21 +2221,37 @@ class $$VehiclesTableTableManager extends RootTableManager<
               .map((e) =>
                   (e.readTable(table), $$VehiclesTableReferences(db, table, e)))
               .toList(),
-          prefetchHooksCallback: ({fuelRecordsRefs = false}) {
+          prefetchHooksCallback: (
+              {energyRecordsRefs = false, expensesRefs = false}) {
             return PrefetchHooks(
               db: db,
-              explicitlyWatchedTables: [if (fuelRecordsRefs) db.fuelRecords],
+              explicitlyWatchedTables: [
+                if (energyRecordsRefs) db.energyRecords,
+                if (expensesRefs) db.expenses
+              ],
               addJoins: null,
               getPrefetchedDataCallback: (items) async {
                 return [
-                  if (fuelRecordsRefs)
+                  if (energyRecordsRefs)
+                    await $_getPrefetchedData(
+                        currentTable: table,
+                        referencedTable: $$VehiclesTableReferences
+                            ._energyRecordsRefsTable(db),
+                        managerFromTypedResult: (p0) =>
+                            $$VehiclesTableReferences(db, table, p0)
+                                .energyRecordsRefs,
+                        referencedItemsForCurrentItem:
+                            (item, referencedItems) => referencedItems
+                                .where((e) => e.vehicleId == item.id),
+                        typedResults: items),
+                  if (expensesRefs)
                     await $_getPrefetchedData(
                         currentTable: table,
                         referencedTable:
-                            $$VehiclesTableReferences._fuelRecordsRefsTable(db),
+                            $$VehiclesTableReferences._expensesRefsTable(db),
                         managerFromTypedResult: (p0) =>
                             $$VehiclesTableReferences(db, table, p0)
-                                .fuelRecordsRefs,
+                                .expensesRefs,
                         referencedItemsForCurrentItem:
                             (item, referencedItems) => referencedItems
                                 .where((e) => e.vehicleId == item.id),
@@ -1550,47 +2274,52 @@ typedef $$VehiclesTableProcessedTableManager = ProcessedTableManager<
     $$VehiclesTableUpdateCompanionBuilder,
     (Vehicle, $$VehiclesTableReferences),
     Vehicle,
-    PrefetchHooks Function({bool fuelRecordsRefs})>;
-typedef $$FuelRecordsTableCreateCompanionBuilder = FuelRecordsCompanion
+    PrefetchHooks Function({bool energyRecordsRefs, bool expensesRefs})>;
+typedef $$EnergyRecordsTableCreateCompanionBuilder = EnergyRecordsCompanion
     Function({
   Value<int> id,
   required int vehicleId,
+  Value<String> energyType,
   required int date,
-  required double fuelAmount,
-  required double totalPrice,
-  required double pricePerLiter,
+  required double quantity,
+  required double amount,
+  required double unitPrice,
   required double odometer,
-  Value<bool> isFullTank,
+  Value<bool> isFull,
   Value<bool> isLightOn,
   Value<String?> fuelType,
+  Value<String?> chargeMethod,
   Value<String?> stationName,
   Value<String?> notes,
   required int createdAt,
 });
-typedef $$FuelRecordsTableUpdateCompanionBuilder = FuelRecordsCompanion
+typedef $$EnergyRecordsTableUpdateCompanionBuilder = EnergyRecordsCompanion
     Function({
   Value<int> id,
   Value<int> vehicleId,
+  Value<String> energyType,
   Value<int> date,
-  Value<double> fuelAmount,
-  Value<double> totalPrice,
-  Value<double> pricePerLiter,
+  Value<double> quantity,
+  Value<double> amount,
+  Value<double> unitPrice,
   Value<double> odometer,
-  Value<bool> isFullTank,
+  Value<bool> isFull,
   Value<bool> isLightOn,
   Value<String?> fuelType,
+  Value<String?> chargeMethod,
   Value<String?> stationName,
   Value<String?> notes,
   Value<int> createdAt,
 });
 
-final class $$FuelRecordsTableReferences
-    extends BaseReferences<_$AppDatabase, $FuelRecordsTable, FuelRecord> {
-  $$FuelRecordsTableReferences(super.$_db, super.$_table, super.$_typedResult);
+final class $$EnergyRecordsTableReferences
+    extends BaseReferences<_$AppDatabase, $EnergyRecordsTable, EnergyRecord> {
+  $$EnergyRecordsTableReferences(
+      super.$_db, super.$_table, super.$_typedResult);
 
   static $VehiclesTable _vehicleIdTable(_$AppDatabase db) =>
       db.vehicles.createAlias(
-          $_aliasNameGenerator(db.fuelRecords.vehicleId, db.vehicles.id));
+          $_aliasNameGenerator(db.energyRecords.vehicleId, db.vehicles.id));
 
   $$VehiclesTableProcessedTableManager? get vehicleId {
     if ($_item.vehicleId == null) return null;
@@ -1603,9 +2332,9 @@ final class $$FuelRecordsTableReferences
   }
 }
 
-class $$FuelRecordsTableFilterComposer
-    extends Composer<_$AppDatabase, $FuelRecordsTable> {
-  $$FuelRecordsTableFilterComposer({
+class $$EnergyRecordsTableFilterComposer
+    extends Composer<_$AppDatabase, $EnergyRecordsTable> {
+  $$EnergyRecordsTableFilterComposer({
     required super.$db,
     required super.$table,
     super.joinBuilder,
@@ -1615,29 +2344,35 @@ class $$FuelRecordsTableFilterComposer
   ColumnFilters<int> get id => $composableBuilder(
       column: $table.id, builder: (column) => ColumnFilters(column));
 
+  ColumnFilters<String> get energyType => $composableBuilder(
+      column: $table.energyType, builder: (column) => ColumnFilters(column));
+
   ColumnFilters<int> get date => $composableBuilder(
       column: $table.date, builder: (column) => ColumnFilters(column));
 
-  ColumnFilters<double> get fuelAmount => $composableBuilder(
-      column: $table.fuelAmount, builder: (column) => ColumnFilters(column));
+  ColumnFilters<double> get quantity => $composableBuilder(
+      column: $table.quantity, builder: (column) => ColumnFilters(column));
 
-  ColumnFilters<double> get totalPrice => $composableBuilder(
-      column: $table.totalPrice, builder: (column) => ColumnFilters(column));
+  ColumnFilters<double> get amount => $composableBuilder(
+      column: $table.amount, builder: (column) => ColumnFilters(column));
 
-  ColumnFilters<double> get pricePerLiter => $composableBuilder(
-      column: $table.pricePerLiter, builder: (column) => ColumnFilters(column));
+  ColumnFilters<double> get unitPrice => $composableBuilder(
+      column: $table.unitPrice, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<double> get odometer => $composableBuilder(
       column: $table.odometer, builder: (column) => ColumnFilters(column));
 
-  ColumnFilters<bool> get isFullTank => $composableBuilder(
-      column: $table.isFullTank, builder: (column) => ColumnFilters(column));
+  ColumnFilters<bool> get isFull => $composableBuilder(
+      column: $table.isFull, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<bool> get isLightOn => $composableBuilder(
       column: $table.isLightOn, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<String> get fuelType => $composableBuilder(
       column: $table.fuelType, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get chargeMethod => $composableBuilder(
+      column: $table.chargeMethod, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<String> get stationName => $composableBuilder(
       column: $table.stationName, builder: (column) => ColumnFilters(column));
@@ -1669,9 +2404,9 @@ class $$FuelRecordsTableFilterComposer
   }
 }
 
-class $$FuelRecordsTableOrderingComposer
-    extends Composer<_$AppDatabase, $FuelRecordsTable> {
-  $$FuelRecordsTableOrderingComposer({
+class $$EnergyRecordsTableOrderingComposer
+    extends Composer<_$AppDatabase, $EnergyRecordsTable> {
+  $$EnergyRecordsTableOrderingComposer({
     required super.$db,
     required super.$table,
     super.joinBuilder,
@@ -1681,30 +2416,36 @@ class $$FuelRecordsTableOrderingComposer
   ColumnOrderings<int> get id => $composableBuilder(
       column: $table.id, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get energyType => $composableBuilder(
+      column: $table.energyType, builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<int> get date => $composableBuilder(
       column: $table.date, builder: (column) => ColumnOrderings(column));
 
-  ColumnOrderings<double> get fuelAmount => $composableBuilder(
-      column: $table.fuelAmount, builder: (column) => ColumnOrderings(column));
+  ColumnOrderings<double> get quantity => $composableBuilder(
+      column: $table.quantity, builder: (column) => ColumnOrderings(column));
 
-  ColumnOrderings<double> get totalPrice => $composableBuilder(
-      column: $table.totalPrice, builder: (column) => ColumnOrderings(column));
+  ColumnOrderings<double> get amount => $composableBuilder(
+      column: $table.amount, builder: (column) => ColumnOrderings(column));
 
-  ColumnOrderings<double> get pricePerLiter => $composableBuilder(
-      column: $table.pricePerLiter,
-      builder: (column) => ColumnOrderings(column));
+  ColumnOrderings<double> get unitPrice => $composableBuilder(
+      column: $table.unitPrice, builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<double> get odometer => $composableBuilder(
       column: $table.odometer, builder: (column) => ColumnOrderings(column));
 
-  ColumnOrderings<bool> get isFullTank => $composableBuilder(
-      column: $table.isFullTank, builder: (column) => ColumnOrderings(column));
+  ColumnOrderings<bool> get isFull => $composableBuilder(
+      column: $table.isFull, builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<bool> get isLightOn => $composableBuilder(
       column: $table.isLightOn, builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<String> get fuelType => $composableBuilder(
       column: $table.fuelType, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get chargeMethod => $composableBuilder(
+      column: $table.chargeMethod,
+      builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<String> get stationName => $composableBuilder(
       column: $table.stationName, builder: (column) => ColumnOrderings(column));
@@ -1736,9 +2477,9 @@ class $$FuelRecordsTableOrderingComposer
   }
 }
 
-class $$FuelRecordsTableAnnotationComposer
-    extends Composer<_$AppDatabase, $FuelRecordsTable> {
-  $$FuelRecordsTableAnnotationComposer({
+class $$EnergyRecordsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $EnergyRecordsTable> {
+  $$EnergyRecordsTableAnnotationComposer({
     required super.$db,
     required super.$table,
     super.joinBuilder,
@@ -1748,29 +2489,35 @@ class $$FuelRecordsTableAnnotationComposer
   GeneratedColumn<int> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
 
+  GeneratedColumn<String> get energyType => $composableBuilder(
+      column: $table.energyType, builder: (column) => column);
+
   GeneratedColumn<int> get date =>
       $composableBuilder(column: $table.date, builder: (column) => column);
 
-  GeneratedColumn<double> get fuelAmount => $composableBuilder(
-      column: $table.fuelAmount, builder: (column) => column);
+  GeneratedColumn<double> get quantity =>
+      $composableBuilder(column: $table.quantity, builder: (column) => column);
 
-  GeneratedColumn<double> get totalPrice => $composableBuilder(
-      column: $table.totalPrice, builder: (column) => column);
+  GeneratedColumn<double> get amount =>
+      $composableBuilder(column: $table.amount, builder: (column) => column);
 
-  GeneratedColumn<double> get pricePerLiter => $composableBuilder(
-      column: $table.pricePerLiter, builder: (column) => column);
+  GeneratedColumn<double> get unitPrice =>
+      $composableBuilder(column: $table.unitPrice, builder: (column) => column);
 
   GeneratedColumn<double> get odometer =>
       $composableBuilder(column: $table.odometer, builder: (column) => column);
 
-  GeneratedColumn<bool> get isFullTank => $composableBuilder(
-      column: $table.isFullTank, builder: (column) => column);
+  GeneratedColumn<bool> get isFull =>
+      $composableBuilder(column: $table.isFull, builder: (column) => column);
 
   GeneratedColumn<bool> get isLightOn =>
       $composableBuilder(column: $table.isLightOn, builder: (column) => column);
 
   GeneratedColumn<String> get fuelType =>
       $composableBuilder(column: $table.fuelType, builder: (column) => column);
+
+  GeneratedColumn<String> get chargeMethod => $composableBuilder(
+      column: $table.chargeMethod, builder: (column) => column);
 
   GeneratedColumn<String> get stationName => $composableBuilder(
       column: $table.stationName, builder: (column) => column);
@@ -1802,54 +2549,58 @@ class $$FuelRecordsTableAnnotationComposer
   }
 }
 
-class $$FuelRecordsTableTableManager extends RootTableManager<
+class $$EnergyRecordsTableTableManager extends RootTableManager<
     _$AppDatabase,
-    $FuelRecordsTable,
-    FuelRecord,
-    $$FuelRecordsTableFilterComposer,
-    $$FuelRecordsTableOrderingComposer,
-    $$FuelRecordsTableAnnotationComposer,
-    $$FuelRecordsTableCreateCompanionBuilder,
-    $$FuelRecordsTableUpdateCompanionBuilder,
-    (FuelRecord, $$FuelRecordsTableReferences),
-    FuelRecord,
+    $EnergyRecordsTable,
+    EnergyRecord,
+    $$EnergyRecordsTableFilterComposer,
+    $$EnergyRecordsTableOrderingComposer,
+    $$EnergyRecordsTableAnnotationComposer,
+    $$EnergyRecordsTableCreateCompanionBuilder,
+    $$EnergyRecordsTableUpdateCompanionBuilder,
+    (EnergyRecord, $$EnergyRecordsTableReferences),
+    EnergyRecord,
     PrefetchHooks Function({bool vehicleId})> {
-  $$FuelRecordsTableTableManager(_$AppDatabase db, $FuelRecordsTable table)
+  $$EnergyRecordsTableTableManager(_$AppDatabase db, $EnergyRecordsTable table)
       : super(TableManagerState(
           db: db,
           table: table,
           createFilteringComposer: () =>
-              $$FuelRecordsTableFilterComposer($db: db, $table: table),
+              $$EnergyRecordsTableFilterComposer($db: db, $table: table),
           createOrderingComposer: () =>
-              $$FuelRecordsTableOrderingComposer($db: db, $table: table),
+              $$EnergyRecordsTableOrderingComposer($db: db, $table: table),
           createComputedFieldComposer: () =>
-              $$FuelRecordsTableAnnotationComposer($db: db, $table: table),
+              $$EnergyRecordsTableAnnotationComposer($db: db, $table: table),
           updateCompanionCallback: ({
             Value<int> id = const Value.absent(),
             Value<int> vehicleId = const Value.absent(),
+            Value<String> energyType = const Value.absent(),
             Value<int> date = const Value.absent(),
-            Value<double> fuelAmount = const Value.absent(),
-            Value<double> totalPrice = const Value.absent(),
-            Value<double> pricePerLiter = const Value.absent(),
+            Value<double> quantity = const Value.absent(),
+            Value<double> amount = const Value.absent(),
+            Value<double> unitPrice = const Value.absent(),
             Value<double> odometer = const Value.absent(),
-            Value<bool> isFullTank = const Value.absent(),
+            Value<bool> isFull = const Value.absent(),
             Value<bool> isLightOn = const Value.absent(),
             Value<String?> fuelType = const Value.absent(),
+            Value<String?> chargeMethod = const Value.absent(),
             Value<String?> stationName = const Value.absent(),
             Value<String?> notes = const Value.absent(),
             Value<int> createdAt = const Value.absent(),
           }) =>
-              FuelRecordsCompanion(
+              EnergyRecordsCompanion(
             id: id,
             vehicleId: vehicleId,
+            energyType: energyType,
             date: date,
-            fuelAmount: fuelAmount,
-            totalPrice: totalPrice,
-            pricePerLiter: pricePerLiter,
+            quantity: quantity,
+            amount: amount,
+            unitPrice: unitPrice,
             odometer: odometer,
-            isFullTank: isFullTank,
+            isFull: isFull,
             isLightOn: isLightOn,
             fuelType: fuelType,
+            chargeMethod: chargeMethod,
             stationName: stationName,
             notes: notes,
             createdAt: createdAt,
@@ -1857,29 +2608,33 @@ class $$FuelRecordsTableTableManager extends RootTableManager<
           createCompanionCallback: ({
             Value<int> id = const Value.absent(),
             required int vehicleId,
+            Value<String> energyType = const Value.absent(),
             required int date,
-            required double fuelAmount,
-            required double totalPrice,
-            required double pricePerLiter,
+            required double quantity,
+            required double amount,
+            required double unitPrice,
             required double odometer,
-            Value<bool> isFullTank = const Value.absent(),
+            Value<bool> isFull = const Value.absent(),
             Value<bool> isLightOn = const Value.absent(),
             Value<String?> fuelType = const Value.absent(),
+            Value<String?> chargeMethod = const Value.absent(),
             Value<String?> stationName = const Value.absent(),
             Value<String?> notes = const Value.absent(),
             required int createdAt,
           }) =>
-              FuelRecordsCompanion.insert(
+              EnergyRecordsCompanion.insert(
             id: id,
             vehicleId: vehicleId,
+            energyType: energyType,
             date: date,
-            fuelAmount: fuelAmount,
-            totalPrice: totalPrice,
-            pricePerLiter: pricePerLiter,
+            quantity: quantity,
+            amount: amount,
+            unitPrice: unitPrice,
             odometer: odometer,
-            isFullTank: isFullTank,
+            isFull: isFull,
             isLightOn: isLightOn,
             fuelType: fuelType,
+            chargeMethod: chargeMethod,
             stationName: stationName,
             notes: notes,
             createdAt: createdAt,
@@ -1887,7 +2642,7 @@ class $$FuelRecordsTableTableManager extends RootTableManager<
           withReferenceMapper: (p0) => p0
               .map((e) => (
                     e.readTable(table),
-                    $$FuelRecordsTableReferences(db, table, e)
+                    $$EnergyRecordsTableReferences(db, table, e)
                   ))
               .toList(),
           prefetchHooksCallback: ({vehicleId = false}) {
@@ -1912,9 +2667,9 @@ class $$FuelRecordsTableTableManager extends RootTableManager<
                     currentTable: table,
                     currentColumn: table.vehicleId,
                     referencedTable:
-                        $$FuelRecordsTableReferences._vehicleIdTable(db),
+                        $$EnergyRecordsTableReferences._vehicleIdTable(db),
                     referencedColumn:
-                        $$FuelRecordsTableReferences._vehicleIdTable(db).id,
+                        $$EnergyRecordsTableReferences._vehicleIdTable(db).id,
                   ) as T;
                 }
 
@@ -1928,17 +2683,355 @@ class $$FuelRecordsTableTableManager extends RootTableManager<
         ));
 }
 
-typedef $$FuelRecordsTableProcessedTableManager = ProcessedTableManager<
+typedef $$EnergyRecordsTableProcessedTableManager = ProcessedTableManager<
     _$AppDatabase,
-    $FuelRecordsTable,
-    FuelRecord,
-    $$FuelRecordsTableFilterComposer,
-    $$FuelRecordsTableOrderingComposer,
-    $$FuelRecordsTableAnnotationComposer,
-    $$FuelRecordsTableCreateCompanionBuilder,
-    $$FuelRecordsTableUpdateCompanionBuilder,
-    (FuelRecord, $$FuelRecordsTableReferences),
-    FuelRecord,
+    $EnergyRecordsTable,
+    EnergyRecord,
+    $$EnergyRecordsTableFilterComposer,
+    $$EnergyRecordsTableOrderingComposer,
+    $$EnergyRecordsTableAnnotationComposer,
+    $$EnergyRecordsTableCreateCompanionBuilder,
+    $$EnergyRecordsTableUpdateCompanionBuilder,
+    (EnergyRecord, $$EnergyRecordsTableReferences),
+    EnergyRecord,
+    PrefetchHooks Function({bool vehicleId})>;
+typedef $$ExpensesTableCreateCompanionBuilder = ExpensesCompanion Function({
+  Value<int> id,
+  required int vehicleId,
+  required int date,
+  required String kind,
+  required String category,
+  Value<String?> items,
+  Value<double?> mileage,
+  required double amount,
+  Value<String?> notes,
+  required int createdAt,
+});
+typedef $$ExpensesTableUpdateCompanionBuilder = ExpensesCompanion Function({
+  Value<int> id,
+  Value<int> vehicleId,
+  Value<int> date,
+  Value<String> kind,
+  Value<String> category,
+  Value<String?> items,
+  Value<double?> mileage,
+  Value<double> amount,
+  Value<String?> notes,
+  Value<int> createdAt,
+});
+
+final class $$ExpensesTableReferences
+    extends BaseReferences<_$AppDatabase, $ExpensesTable, Expense> {
+  $$ExpensesTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static $VehiclesTable _vehicleIdTable(_$AppDatabase db) => db.vehicles
+      .createAlias($_aliasNameGenerator(db.expenses.vehicleId, db.vehicles.id));
+
+  $$VehiclesTableProcessedTableManager? get vehicleId {
+    if ($_item.vehicleId == null) return null;
+    final manager = $$VehiclesTableTableManager($_db, $_db.vehicles)
+        .filter((f) => f.id($_item.vehicleId!));
+    final item = $_typedResult.readTableOrNull(_vehicleIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+        manager.$state.copyWith(prefetchedData: [item]));
+  }
+}
+
+class $$ExpensesTableFilterComposer
+    extends Composer<_$AppDatabase, $ExpensesTable> {
+  $$ExpensesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get date => $composableBuilder(
+      column: $table.date, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get kind => $composableBuilder(
+      column: $table.kind, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get category => $composableBuilder(
+      column: $table.category, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get items => $composableBuilder(
+      column: $table.items, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get mileage => $composableBuilder(
+      column: $table.mileage, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get amount => $composableBuilder(
+      column: $table.amount, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get notes => $composableBuilder(
+      column: $table.notes, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnFilters(column));
+
+  $$VehiclesTableFilterComposer get vehicleId {
+    final $$VehiclesTableFilterComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.vehicleId,
+        referencedTable: $db.vehicles,
+        getReferencedColumn: (t) => t.id,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$VehiclesTableFilterComposer(
+              $db: $db,
+              $table: $db.vehicles,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return composer;
+  }
+}
+
+class $$ExpensesTableOrderingComposer
+    extends Composer<_$AppDatabase, $ExpensesTable> {
+  $$ExpensesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get date => $composableBuilder(
+      column: $table.date, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get kind => $composableBuilder(
+      column: $table.kind, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get category => $composableBuilder(
+      column: $table.category, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get items => $composableBuilder(
+      column: $table.items, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<double> get mileage => $composableBuilder(
+      column: $table.mileage, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<double> get amount => $composableBuilder(
+      column: $table.amount, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get notes => $composableBuilder(
+      column: $table.notes, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+
+  $$VehiclesTableOrderingComposer get vehicleId {
+    final $$VehiclesTableOrderingComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.vehicleId,
+        referencedTable: $db.vehicles,
+        getReferencedColumn: (t) => t.id,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$VehiclesTableOrderingComposer(
+              $db: $db,
+              $table: $db.vehicles,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return composer;
+  }
+}
+
+class $$ExpensesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $ExpensesTable> {
+  $$ExpensesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<int> get date =>
+      $composableBuilder(column: $table.date, builder: (column) => column);
+
+  GeneratedColumn<String> get kind =>
+      $composableBuilder(column: $table.kind, builder: (column) => column);
+
+  GeneratedColumn<String> get category =>
+      $composableBuilder(column: $table.category, builder: (column) => column);
+
+  GeneratedColumn<String> get items =>
+      $composableBuilder(column: $table.items, builder: (column) => column);
+
+  GeneratedColumn<double> get mileage =>
+      $composableBuilder(column: $table.mileage, builder: (column) => column);
+
+  GeneratedColumn<double> get amount =>
+      $composableBuilder(column: $table.amount, builder: (column) => column);
+
+  GeneratedColumn<String> get notes =>
+      $composableBuilder(column: $table.notes, builder: (column) => column);
+
+  GeneratedColumn<int> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  $$VehiclesTableAnnotationComposer get vehicleId {
+    final $$VehiclesTableAnnotationComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.vehicleId,
+        referencedTable: $db.vehicles,
+        getReferencedColumn: (t) => t.id,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$VehiclesTableAnnotationComposer(
+              $db: $db,
+              $table: $db.vehicles,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return composer;
+  }
+}
+
+class $$ExpensesTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $ExpensesTable,
+    Expense,
+    $$ExpensesTableFilterComposer,
+    $$ExpensesTableOrderingComposer,
+    $$ExpensesTableAnnotationComposer,
+    $$ExpensesTableCreateCompanionBuilder,
+    $$ExpensesTableUpdateCompanionBuilder,
+    (Expense, $$ExpensesTableReferences),
+    Expense,
+    PrefetchHooks Function({bool vehicleId})> {
+  $$ExpensesTableTableManager(_$AppDatabase db, $ExpensesTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ExpensesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$ExpensesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$ExpensesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<int> id = const Value.absent(),
+            Value<int> vehicleId = const Value.absent(),
+            Value<int> date = const Value.absent(),
+            Value<String> kind = const Value.absent(),
+            Value<String> category = const Value.absent(),
+            Value<String?> items = const Value.absent(),
+            Value<double?> mileage = const Value.absent(),
+            Value<double> amount = const Value.absent(),
+            Value<String?> notes = const Value.absent(),
+            Value<int> createdAt = const Value.absent(),
+          }) =>
+              ExpensesCompanion(
+            id: id,
+            vehicleId: vehicleId,
+            date: date,
+            kind: kind,
+            category: category,
+            items: items,
+            mileage: mileage,
+            amount: amount,
+            notes: notes,
+            createdAt: createdAt,
+          ),
+          createCompanionCallback: ({
+            Value<int> id = const Value.absent(),
+            required int vehicleId,
+            required int date,
+            required String kind,
+            required String category,
+            Value<String?> items = const Value.absent(),
+            Value<double?> mileage = const Value.absent(),
+            required double amount,
+            Value<String?> notes = const Value.absent(),
+            required int createdAt,
+          }) =>
+              ExpensesCompanion.insert(
+            id: id,
+            vehicleId: vehicleId,
+            date: date,
+            kind: kind,
+            category: category,
+            items: items,
+            mileage: mileage,
+            amount: amount,
+            notes: notes,
+            createdAt: createdAt,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) =>
+                  (e.readTable(table), $$ExpensesTableReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: ({vehicleId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins: <
+                  T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic>>(state) {
+                if (vehicleId) {
+                  state = state.withJoin(
+                    currentTable: table,
+                    currentColumn: table.vehicleId,
+                    referencedTable:
+                        $$ExpensesTableReferences._vehicleIdTable(db),
+                    referencedColumn:
+                        $$ExpensesTableReferences._vehicleIdTable(db).id,
+                  ) as T;
+                }
+
+                return state;
+              },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ));
+}
+
+typedef $$ExpensesTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $ExpensesTable,
+    Expense,
+    $$ExpensesTableFilterComposer,
+    $$ExpensesTableOrderingComposer,
+    $$ExpensesTableAnnotationComposer,
+    $$ExpensesTableCreateCompanionBuilder,
+    $$ExpensesTableUpdateCompanionBuilder,
+    (Expense, $$ExpensesTableReferences),
+    Expense,
     PrefetchHooks Function({bool vehicleId})>;
 
 class $AppDatabaseManager {
@@ -1946,6 +3039,8 @@ class $AppDatabaseManager {
   $AppDatabaseManager(this._db);
   $$VehiclesTableTableManager get vehicles =>
       $$VehiclesTableTableManager(_db, _db.vehicles);
-  $$FuelRecordsTableTableManager get fuelRecords =>
-      $$FuelRecordsTableTableManager(_db, _db.fuelRecords);
+  $$EnergyRecordsTableTableManager get energyRecords =>
+      $$EnergyRecordsTableTableManager(_db, _db.energyRecords);
+  $$ExpensesTableTableManager get expenses =>
+      $$ExpensesTableTableManager(_db, _db.expenses);
 }

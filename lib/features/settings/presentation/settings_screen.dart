@@ -1,4 +1,4 @@
-// 智记油耗 - 设置页面
+// 智记能耗 - 设置页面
 // 这个页面允许用户自定义应用的各项设置
 
 import 'package:flutter/material.dart';
@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 // 导入设置Provider
 import '../providers/settings_provider.dart';
 // 导入数据库Provider
+import '../../../shared/app_version.dart';
 import '../../vehicles/providers/vehicles_provider.dart';
 // 导入导出Provider
 import '../../export/providers/export_provider.dart';
@@ -44,71 +45,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          // 单位设置分组
-          _buildSectionTitle(context, '单位设置'),
-          Card(
-            child: Column(
-              children: [
-                // 距离单位
-                _buildSettingTile(
-                  context,
-                  icon: Icons.straighten,
-                  title: '距离单位',
-                  subtitle: settings.distanceUnit.label,
-                  trailing: Text(
-                    settings.distanceUnit.symbol,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Theme.of(context).colorScheme.primary,
-                    ),
-                  ),
-                  onTap: () {
-                    _showDistanceUnitDialog(context, settings);
-                  },
-                ),
-                const Divider(height: 1),
-                
-                // 油量单位
-                _buildSettingTile(
-                  context,
-                  icon: Icons.local_gas_station,
-                  title: '油量单位',
-                  subtitle: settings.fuelUnit.label,
-                  trailing: Text(
-                    settings.fuelUnit.symbol,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Theme.of(context).colorScheme.primary,
-                    ),
-                  ),
-                  onTap: () {
-                    _showFuelUnitDialog(context, settings);
-                  },
-                ),
-              ],
-            ),
-          ),
-          
-          const SizedBox(height: 24),
-          
-          // 货币设置分组
-          _buildSectionTitle(context, '货币设置'),
-          Card(
-            child: _buildSettingTile(
-              context,
-              icon: Icons.attach_money,
-              title: '货币符号',
-              subtitle: settings.currency.label,
-              trailing: Text(
-                settings.currency.symbol,
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  color: Theme.of(context).colorScheme.primary,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              onTap: () {
-                _showCurrencyDialog(context, settings);
-              },
-            ),
-          ),
           
           const SizedBox(height: 24),
           
@@ -172,7 +108,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   context,
                   icon: Icons.table_chart,
                   title: '导出Excel',
-                  subtitle: '导出加油记录表格',
+                  subtitle: '导出能耗记录表格',
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () {
                     _showExportExcelDialog(context, ref);
@@ -211,7 +147,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   context,
                   icon: Icons.info_outline,
                   title: '应用版本',
-                  subtitle: 'v1.0.0',
+                  subtitle: kAppVersionLabel,
                 ),
                 const Divider(height: 1),
                 
@@ -220,7 +156,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   context,
                   icon: Icons.person_outline,
                   title: '开发者',
-                  subtitle: '智记油耗 by 细胞',
+                  subtitle: '智记能耗 by 细胞',
                 ),
                 const Divider(height: 1),
                 
@@ -241,7 +177,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           // 版权信息
           Center(
             child: Text(
-              '© 2026 智记油耗',
+              '© 2026 智记能耗',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                 color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
@@ -302,131 +238,34 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
-  /// 显示距离单位选择对话框
-  void _showDistanceUnitDialog(BuildContext context, AppSettings settings) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('选择距离单位'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: DistanceUnit.values.map((unit) {
-            return RadioListTile<DistanceUnit>(
-              title: Text(unit.label),
-              subtitle: Text('符号: ${unit.symbol}'),
-              value: unit,
-              groupValue: settings.distanceUnit,
-              onChanged: (value) {
-                if (value != null) {
-                  ref.read(settingsProvider.notifier).setDistanceUnit(value);
-                  Navigator.of(context).pop();
-                }
-              },
-            );
-          }).toList(),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('取消'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// 显示油量单位选择对话框
-  void _showFuelUnitDialog(BuildContext context, AppSettings settings) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('选择油量单位'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: FuelUnit.values.map((unit) {
-            return RadioListTile<FuelUnit>(
-              title: Text(unit.label),
-              subtitle: Text('符号: ${unit.symbol}'),
-              value: unit,
-              groupValue: settings.fuelUnit,
-              onChanged: (value) {
-                if (value != null) {
-                  ref.read(settingsProvider.notifier).setFuelUnit(value);
-                  Navigator.of(context).pop();
-                }
-              },
-            );
-          }).toList(),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('取消'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// 显示货币选择对话框
-  void _showCurrencyDialog(BuildContext context, AppSettings settings) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('选择货币'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: AppCurrency.values.map((currency) {
-            return RadioListTile<AppCurrency>(
-              title: Text(currency.label),
-              subtitle: Text('符号: ${currency.symbol}'),
-              value: currency,
-              groupValue: settings.currency,
-              onChanged: (value) {
-                if (value != null) {
-                  ref.read(settingsProvider.notifier).setCurrency(value);
-                  Navigator.of(context).pop();
-                }
-              },
-            );
-          }).toList(),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('取消'),
-          ),
-        ],
-      ),
-    );
-  }
-
   /// 显示主题模式选择对话框
   void _showThemeModeDialog(BuildContext context, AppSettings settings) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('选择主题模式'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: AppThemeMode.values.map((mode) {
-            return RadioListTile<AppThemeMode>(
-              title: Text(mode.label),
-              subtitle: mode == AppThemeMode.light
-                  ? const Text('始终使用浅色主题')
-                  : mode == AppThemeMode.dark
-                      ? const Text('始终使用深色主题')
-                      : const Text('跟随系统设置'),
-              value: mode,
-              groupValue: settings.themeMode,
-              onChanged: (value) {
-                if (value != null) {
-                  ref.read(settingsProvider.notifier).setThemeMode(value);
-                  Navigator.of(context).pop();
-                }
-              },
-            );
-          }).toList(),
+        content: RadioGroup<AppThemeMode>(
+          groupValue: settings.themeMode,
+          onChanged: (value) {
+            if (value != null) {
+              ref.read(settingsProvider.notifier).setThemeMode(value);
+              Navigator.of(context).pop();
+            }
+          },
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: AppThemeMode.values.map((mode) {
+              return RadioListTile<AppThemeMode>(
+                title: Text(mode.label),
+                subtitle: mode == AppThemeMode.light
+                    ? const Text('始终使用浅色主题')
+                    : mode == AppThemeMode.dark
+                        ? const Text('始终使用深色主题')
+                        : const Text('跟随系统设置'),
+                value: mode,
+              );
+            }).toList(),
+          ),
         ),
         actions: [
           TextButton(
@@ -451,7 +290,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ],
         ),
         content: const Text(
-          '此操作将删除所有车辆和加油记录，且无法恢复！\n\n确定要继续吗？',
+          '此操作将删除所有车辆和能耗记录，且无法恢复！\n\n确定要继续吗？',
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
         actions: [
@@ -481,11 +320,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       // 获取数据库实例
       final database = ref.read(databaseProvider);
       
-      // 删除所有加油记录
-      await database.deleteAllFuelRecords();
-      
-      // 删除所有车辆
-      await database.deleteAllVehicles();
+      // 删除所有能耗记录
+      // 三张表在同一个事务里清空，顺序：支出 → 能耗记录 → 车辆
+      await database.transaction(() async {
+        await database.deleteAllExpenses();
+        await database.deleteAllEnergyRecords();
+        await database.deleteAllVehicles();
+      });
       
       if (context.mounted) {
         // 显示成功提示
@@ -552,7 +393,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     if (confirmed != true) {
       return;
     }
-    
+    if (!context.mounted) return;
+
     // 显示加载提示
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('正在导入数据...')),
@@ -582,7 +424,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   Future<void> _showExportExcelDialog(BuildContext context, WidgetRef ref) async {
     // 获取所有车辆
     final database = ref.read(databaseProvider);
-    final vehicles = await database.getAllVehiclesNative();
+    final vehicles = await database.getAllVehicles();
     
     if (vehicles.isEmpty) {
       if (context.mounted) {
@@ -593,6 +435,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       return;
     }
     
+    if (!context.mounted) return;
+
     // 显示车辆选择对话框
     showDialog(
       context: context,

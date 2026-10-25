@@ -33,8 +33,9 @@
         ]
       }
     ],
-    "requestPermissions": [
-      {"name" :  "ohos.permission.INTERNET"},
-    ]
+    // 本应用不申请任何权限。
+    // 原模板默认带了 ohos.permission.INTERNET，但代码里没有任何网络调用，
+    // 2026-10-25 已删除——"零权限"要做得彻底，也让审核与用户一眼看清。
+    "requestPermissions": []
   }
 }

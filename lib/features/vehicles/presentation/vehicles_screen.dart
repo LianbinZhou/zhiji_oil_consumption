@@ -1,9 +1,9 @@
-// 智记油耗 - 车辆管理页面
+// 智记能耗 - 车辆管理页面
 // 这个页面显示所有车辆列表,并提供添加、编辑、删除功能
 
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 // 导入Provider
 import '../providers/vehicles_provider.dart';
@@ -32,6 +32,11 @@ class VehiclesScreen extends ConsumerWidget {
     return Scaffold(
       // 应用栏
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          tooltip: '返回首页',
+          onPressed: () => context.go('/'),
+        ),
         title: const Text('车辆管理'),
       ),
       
@@ -192,6 +197,30 @@ class VehiclesScreen extends ConsumerWidget {
                       '默认',
                       style: TextStyle(
                         color: theme.colorScheme.onPrimary,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                ],
+                // 能源类型标记（纯电/混动才显示；油车不显示，省空间）
+                if (vehicle.energyType != 'gasoline') ...[
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: vehicle.isElectric
+                          ? const Color(0xFF2EC4B6)
+                          : const Color(0xFFFFA726),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      vehicle.energyTypeLabel,
+                      style: const TextStyle(
+                        color: Colors.white,
                         fontSize: 12,
                         fontWeight: FontWeight.w500,
                       ),

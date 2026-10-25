@@ -1,4 +1,4 @@
-// 智记油耗 - 车辆管理Provider
+// 智记能耗 - 车辆管理Provider
 // 这个文件使用Riverpod管理车辆数据的业务逻辑
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -31,6 +31,7 @@ model.Vehicle _convertVehicle(Vehicle data) {
     color: data.color,
     notes: data.notes,
     vehicleType: data.vehicleType,
+    energyType: data.energyType,
     isDefault: data.isDefault,
     createdAt: DateTime.fromMillisecondsSinceEpoch(data.createdAt),
     updatedAt: DateTime.fromMillisecondsSinceEpoch(data.updatedAt),
@@ -46,7 +47,7 @@ final vehiclesStreamProvider = StreamProvider<List<model.Vehicle>>((ref) {
   final database = ref.watch(databaseProvider);
   
   // 获取Drift原生类型的Stream,然后转换为自定义模型
-  return database.watchAllVehiclesNative().map((vehicles) {
+  return database.watchAllVehicles().map((vehicles) {
     return vehicles.map(_convertVehicle).toList();
   });
 });
@@ -121,7 +122,7 @@ class VehiclesNotifier extends AutoDisposeNotifier<List<model.Vehicle>> {
   }) async {
     final database = ref.read(databaseProvider);
     
-    final existingVehicle = await database.getVehicleByIdNative(id);
+    final existingVehicle = await database.getVehicleById(id);
     if (existingVehicle == null) {
       throw Exception('车辆不存在');
     }
@@ -150,7 +151,7 @@ class VehiclesNotifier extends AutoDisposeNotifier<List<model.Vehicle>> {
     final database = ref.read(databaseProvider);
     
     // 先取消所有车辆的默认状态
-    final allVehicles = await database.getAllVehiclesNative();
+    final allVehicles = await database.getAllVehicles();
     for (final v in allVehicles) {
       if (v.isDefault) {
         await database.updateVehicle(VehiclesCompanion(
@@ -169,7 +170,7 @@ class VehiclesNotifier extends AutoDisposeNotifier<List<model.Vehicle>> {
     }
     
     // 将指定车辆设为默认
-    final targetVehicle = await database.getVehicleByIdNative(vehicleId);
+    final targetVehicle = await database.getVehicleById(vehicleId);
     if (targetVehicle != null) {
       await database.updateVehicle(VehiclesCompanion(
         id: drift.Value(vehicleId),

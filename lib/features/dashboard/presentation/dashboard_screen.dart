@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../settings/providers/settings_provider.dart';
+import '../../statistics/presentation/statistics_overview_screen.dart';
+import '../../../shared/utils/unit_converter.dart';
 
 import '../providers/dashboard_provider.dart';
 import '../../vehicles/presentation/vehicle_dialog.dart';
@@ -12,6 +15,7 @@ class DashboardScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final summaryAsync = ref.watch(dashboardSummaryProvider);
     final overviewsAsync = ref.watch(vehicleOverviewsProvider);
+    final settings = ref.watch(settingsProvider).settings;
 
     return Scaffold(
       appBar: AppBar(
@@ -24,10 +28,21 @@ class DashboardScreen extends ConsumerWidget {
               size: 22,
             ),
             const SizedBox(width: 8),
-            const Text('智记油耗'),
+            const Text('智记能耗'),
           ],
         ),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.analytics_outlined),
+            tooltip: '统计总览',
+            onPressed: () {
+              Navigator.of(context, rootNavigator: true).push(
+                MaterialPageRoute(
+                  builder: (_) => const StatisticsOverviewScreen(),
+                ),
+              );
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.add_circle_outline),
             tooltip: '添加车辆',
@@ -59,7 +74,7 @@ class DashboardScreen extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // 本月概览卡片
-                  _buildMonthlyOverviewCard(context, summary),
+                  _buildMonthlyOverviewCard(context, summary, settings),
                   const SizedBox(height: 20),
 
                   // 我的车辆标题
@@ -99,7 +114,7 @@ class DashboardScreen extends ConsumerWidget {
                         children: overviews.map((overview) {
                           return Padding(
                             padding: const EdgeInsets.only(bottom: 12),
-                            child: _buildVehicleCard(context, overview),
+                            child: _buildVehicleCard(context, overview, settings),
                           );
                         }).toList(),
                       );
@@ -127,7 +142,7 @@ class DashboardScreen extends ConsumerWidget {
               });
             },
             icon: const Icon(Icons.add),
-            label: const Text('记录加油'),
+            label: const Text('记录能耗'),
           );
         },
       ),
@@ -176,7 +191,7 @@ class DashboardScreen extends ConsumerWidget {
               width: 120,
               height: 120,
               decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
               child: Icon(
@@ -187,7 +202,7 @@ class DashboardScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 32),
             Text(
-              '欢迎使用智记油耗',
+              '欢迎使用智记能耗',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                 fontWeight: FontWeight.w700,
@@ -195,7 +210,7 @@ class DashboardScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              '轻松记录每次加油,了解你的用车成本',
+              '轻松记录每次加油或充电，了解你的用车成本',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                 color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -207,18 +222,20 @@ class DashboardScreen extends ConsumerWidget {
             _buildFeatureRow(
               context,
               Icons.local_gas_station,
-              '加油记录',
-              '简单几步记录加油数据',
+              '能耗记录',
+              '简单几步记录能耗数据',
               onTap: () async {
                 await showDialog(
                   context: context,
                   builder: (context) => const VehicleDialog(),
                 );
+                // await 之后 context 可能已失效（页面被销毁），先确认
+                if (!context.mounted) return;
                 // 添加车辆后刷新
                 ref.invalidate(vehicleOverviewsProvider);
                 ref.invalidate(dashboardSummaryProvider);
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('车辆添加成功，点击底部"+"记录加油')),
+                  const SnackBar(content: Text('车辆添加成功，点击底部"+"记录能耗')),
                 );
               },
             ),
@@ -279,7 +296,7 @@ class DashboardScreen extends ConsumerWidget {
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.primary.withOpacity(0.08),
+                  color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(icon, color: Theme.of(context).colorScheme.primary, size: 22),
@@ -302,7 +319,7 @@ class DashboardScreen extends ConsumerWidget {
               if (onTap != null)
                 Icon(
                   Icons.chevron_right,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.5),
+                  color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
                   size: 20,
                 ),
             ],
@@ -313,7 +330,8 @@ class DashboardScreen extends ConsumerWidget {
   }
 
   // 本月概览卡片 - 渐变背景
-  Widget _buildMonthlyOverviewCard(BuildContext context, DashboardSummary summary) {
+  Widget _buildMonthlyOverviewCard(
+      BuildContext context, DashboardSummary summary, AppSettings settings) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
@@ -321,7 +339,7 @@ class DashboardScreen extends ConsumerWidget {
         gradient: LinearGradient(
           colors: [
             Theme.of(context).colorScheme.primary,
-            Theme.of(context).colorScheme.primary.withOpacity(0.8),
+            Theme.of(context).colorScheme.primary.withValues(alpha: 0.8),
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -329,7 +347,7 @@ class DashboardScreen extends ConsumerWidget {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
+            color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3),
             blurRadius: 12,
             offset: const Offset(0, 6),
           ),
@@ -371,14 +389,16 @@ class DashboardScreen extends ConsumerWidget {
           // 底部三项统计
           Row(
             children: [
-              _buildOverviewStat('加油', '${summary.monthlyRecordCount}次'),
+              _buildOverviewStat('记录', '${summary.monthlyRecordCount}次'),
               _buildOverviewDivider(),
-              _buildOverviewStat('里程', '${summary.monthlyTotalDistance.toStringAsFixed(0)}km'),
+              _buildOverviewStat(
+                '里程',
+                '${UnitConverter.distance(summary.monthlyTotalDistance, settings.distanceUnit).toStringAsFixed(0)}${UnitConverter.distanceSymbol(settings.distanceUnit)}'),
               _buildOverviewDivider(),
               _buildOverviewStat(
                 '油耗',
                 summary.averageFuelConsumption != null
-                    ? '${summary.averageFuelConsumption!.toStringAsFixed(1)}L'
+                    ? '${UnitConverter.consumption(summary.averageFuelConsumption!, settings.distanceUnit).toStringAsFixed(1)}${UnitConverter.consumptionLabel('gasoline', settings.distanceUnit)}'
                     : '--',
               ),
             ],
@@ -419,7 +439,8 @@ class DashboardScreen extends ConsumerWidget {
   }
 
   // 车辆卡片
-  Widget _buildVehicleCard(BuildContext context, VehicleOverview overview) {
+  Widget _buildVehicleCard(
+      BuildContext context, VehicleOverview overview, AppSettings settings) {
     return Card(
       child: InkWell(
         onTap: () => context.go('/records/${overview.vehicle.id}'),
@@ -436,7 +457,7 @@ class DashboardScreen extends ConsumerWidget {
                     width: 48,
                     height: 48,
                     decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                      color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(14),
                     ),
                     child: Icon(
@@ -484,14 +505,14 @@ class DashboardScreen extends ConsumerWidget {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.5),
+                  color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Row(
                   children: [
                     _buildVehicleStat(
                       context,
-                      '最近加油',
+                      '最近记录',
                       overview.lastFuelDate != null
                           ? '${overview.lastFuelDate!.month}/${overview.lastFuelDate!.day}'
                           : '-',
@@ -501,7 +522,7 @@ class DashboardScreen extends ConsumerWidget {
                       context,
                       '总里程',
                       overview.lastOdometer != null
-                          ? '${overview.lastOdometer!.toStringAsFixed(0)}km'
+                          ? '${UnitConverter.distance(overview.lastOdometer!, settings.distanceUnit).toStringAsFixed(0)}${UnitConverter.distanceSymbol(settings.distanceUnit)}'
                           : '-',
                     ),
                     _buildVehicleStatDivider(context),
@@ -509,7 +530,7 @@ class DashboardScreen extends ConsumerWidget {
                       context,
                       '油耗',
                       overview.recentFuelConsumption != null
-                          ? '${overview.recentFuelConsumption!.toStringAsFixed(1)}L/100km'
+                          ? '${UnitConverter.consumption(overview.recentFuelConsumption!, settings.distanceUnit).toStringAsFixed(1)}${UnitConverter.consumptionLabel('gasoline', settings.distanceUnit)}'
                           : '-',
                     ),
                   ],
@@ -580,7 +601,7 @@ class DashboardScreen extends ConsumerWidget {
       width: 1,
       height: 28,
       margin: const EdgeInsets.symmetric(horizontal: 8),
-      color: Theme.of(context).colorScheme.outlineVariant.withOpacity(0.5),
+      color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.5),
     );
   }
 
@@ -603,7 +624,7 @@ class DashboardScreen extends ConsumerWidget {
                 width: 40,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.3),
+                  color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.3),
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -622,7 +643,7 @@ class DashboardScreen extends ConsumerWidget {
                   width: 40,
                   height: 40,
                   decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                    color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Icon(

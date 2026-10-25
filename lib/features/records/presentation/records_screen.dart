@@ -1,4 +1,4 @@
-// 智记油耗 - 油耗记录列表页面
+// 智记能耗 - 油耗记录列表页面
 // 美化版：更好的卡片设计和视觉层次
 
 import 'package:flutter/material.dart';
@@ -6,9 +6,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../providers/records_provider.dart';
+import '../../../data/database/tables.dart';
+import '../../expenses/presentation/expense_list_screen.dart';
+import '../../settings/providers/settings_provider.dart';
+import '../../../shared/utils/unit_converter.dart';
 import '../../vehicles/providers/vehicles_provider.dart';
 import 'record_dialog.dart';
 import '../../../data/models/fuel_record.dart' as model;
+import '../../../data/models/vehicle.dart' as model_vehicle;
 
 /// 油耗记录列表页面
 class RecordsScreen extends ConsumerWidget {
@@ -23,13 +28,16 @@ class RecordsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final recordsAsync = ref.watch(recordsStreamProvider(vehicleId));
     final vehiclesAsync = ref.watch(vehiclesStreamProvider);
+    final vehicle = vehiclesAsync.valueOrNull
+        ?.where((v) => v.id == vehicleId)
+        .firstOrNull;
     final vehicleName = vehiclesAsync.when(
       data: (vehicles) {
         final v = vehicles.where((v) => v.id == vehicleId).firstOrNull;
-        return v != null ? '${v.brand} ${v.model}' : '加油记录';
+        return v != null ? '${v.brand} ${v.model}' : '能耗记录';
       },
-      loading: () => '加油记录',
-      error: (_, __) => '加油记录',
+      loading: () => '能耗记录',
+      error: (_, __) => '能耗记录',
     );
 
     return Scaffold(
@@ -40,6 +48,32 @@ class RecordsScreen extends ConsumerWidget {
           onPressed: () => context.go('/'),
         ),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.build_outlined),
+            tooltip: '保养记录',
+            onPressed: () => Navigator.of(context, rootNavigator: true).push(
+              MaterialPageRoute(
+                builder: (_) => ExpenseListScreen(
+                  vehicleId: vehicleId,
+                  kind: ExpenseKinds.maintenance,
+                  vehicleName: vehicleName,
+                ),
+              ),
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.receipt_long_outlined),
+            tooltip: '费用账本',
+            onPressed: () => Navigator.of(context, rootNavigator: true).push(
+              MaterialPageRoute(
+                builder: (_) => ExpenseListScreen(
+                  vehicleId: vehicleId,
+                  kind: ExpenseKinds.other,
+                  vehicleName: vehicleName,
+                ),
+              ),
+            ),
+          ),
           IconButton(
             icon: const Icon(Icons.insights_outlined),
             tooltip: '查看统计',
@@ -59,7 +93,7 @@ class RecordsScreen extends ConsumerWidget {
           return Column(
             children: [
               // 顶部统计摘要
-              _buildQuickStats(context, records),
+              _buildQuickStats(context, ref, records, vehicle),
               // 记录列表
               Expanded(child: _buildRecordsList(context, ref, records)),
             ],
@@ -79,7 +113,8 @@ class RecordsScreen extends ConsumerWidget {
   }
 
   // 顶部快速统计
-  Widget _buildQuickStats(BuildContext context, List<model.FuelRecordModel> records) {
+  Widget _buildQuickStats(BuildContext context, WidgetRef ref,
+      List<model.FuelRecordModel> records, model_vehicle.Vehicle? vehicle) {
     // 计算统计数据
     double totalCost = 0;
     double totalFuel = 0;
@@ -93,7 +128,7 @@ class RecordsScreen extends ConsumerWidget {
       margin: const EdgeInsets.fromLTRB(16, 8, 16, 4),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.5),
+        color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(14),
       ),
       child: Row(
@@ -102,12 +137,68 @@ class RecordsScreen extends ConsumerWidget {
           _buildMiniStatDivider(context),
           _buildMiniStat(context, '¥${totalCost.toStringAsFixed(0)}', '总花费'),
           _buildMiniStatDivider(context),
-          _buildMiniStat(context, '${totalFuel.toStringAsFixed(0)}L', '总加油'),
-          _buildMiniStatDivider(context),
-          _buildMiniStat(context, '¥${avgPrice.toStringAsFixed(2)}', '均价/L'),
+          // 混动车同时有油和电，升与 kWh 相加没有意义（会得到一个既不是油耗也不是电耗的数），
+          // 所以混动只给「每公里成本」这一条有意义的汇总。
+          if (vehicle?.energyType == 'hybrid') ...[
+            _buildMiniStat(
+                context, _costPerKmLabel(records, totalCost), '每公里成本'),
+          ] else ...[
+            _buildMiniStat(
+                context,
+                '${totalFuel.toStringAsFixed(0)}${_quantityUnit(vehicle)}',
+                _quantityLabel(vehicle)),
+            _buildMiniStatDivider(context),
+            _buildMiniStat(
+                context, '¥${avgPrice.toStringAsFixed(2)}', _avgPriceLabel(vehicle)),
+          ],
         ],
       ),
     );
+  }
+
+  /// 混动专用：每公里成本（用首末里程差算，少于 2 条则显示 —）
+  String _costPerKmLabel(List<model.FuelRecordModel> records, double totalCost) {
+    if (records.length < 2) return '—';
+    final odos = records.map((r) => r.odometer).toList()..sort();
+    final distance = odos.last - odos.first;
+    if (distance <= 0) return '—';
+    return '¥${(totalCost / distance).toStringAsFixed(2)}';
+  }
+
+  /// 数量单位（按车辆能源类型）
+  String _quantityUnit(model_vehicle.Vehicle? v) {
+    switch (v?.energyType) {
+      case 'electric':
+        return ' kWh';
+      case 'hybrid':
+        return '';
+      default:
+        return ' L';
+    }
+  }
+
+  /// 数量标签
+  String _quantityLabel(model_vehicle.Vehicle? v) {
+    switch (v?.energyType) {
+      case 'electric':
+        return '总加电';
+      case 'hybrid':
+        return '总能耗';
+      default:
+        return '总加油';
+    }
+  }
+
+  /// 均价标签
+  String _avgPriceLabel(model_vehicle.Vehicle? v) {
+    switch (v?.energyType) {
+      case 'electric':
+        return '均价/kWh';
+      case 'hybrid':
+        return '均价';
+      default:
+        return '均价/L';
+    }
   }
 
   Widget _buildMiniStat(BuildContext context, String value, String label) {
@@ -138,7 +229,7 @@ class RecordsScreen extends ConsumerWidget {
     return Container(
       width: 1,
       height: 24,
-      color: Theme.of(context).colorScheme.outlineVariant.withOpacity(0.5),
+      color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.5),
     );
   }
 
@@ -152,7 +243,7 @@ class RecordsScreen extends ConsumerWidget {
             width: 88,
             height: 88,
             decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+              color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
             child: Icon(
@@ -163,7 +254,7 @@ class RecordsScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 20),
           Text(
-            '暂无加油记录',
+            '暂无能耗记录',
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
               fontWeight: FontWeight.w600,
             ),
@@ -186,17 +277,64 @@ class RecordsScreen extends ConsumerWidget {
     WidgetRef ref,
     List<model.FuelRecordModel> records,
   ) {
+    // 先按锚点区间算好每条记录的油耗（与统计页同一口径）
+    final consumptionById = _computeIntervalConsumption(records);
+
     return ListView.builder(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
       itemCount: records.length,
       itemBuilder: (context, index) {
         final record = records[index];
-        final previousOdometer = index < records.length - 1
-            ? records[index + 1].odometer
-            : null;
-        return _buildRecordCard(context, ref, record, previousOdometer);
+        return _buildRecordCard(
+            context, ref, record, consumptionById[record.id]);
       },
     );
+  }
+
+  /// 按「锚点区间」算每条记录的油耗，口径与统计页完全一致
+  ///
+  /// 规则：从上一个"加满/充满"的锚点，到这条锚点之间，所有油量求和 ÷ 里程差。
+  /// 这样中途没加满的那次也会被计入，不会像"单条油量÷里程差"那样漏算。
+  /// 逐段油耗（列表页专用：每行显示自己那一段）
+  ///
+  /// 口径与 statistics_provider 的 weightedConsumption 同源：
+  /// 都是「isFull 作锚点 + 区间内同能源类型求和」，区别只是这里按段返回、那里算整体。
+  Map<int, double?> _computeIntervalConsumption(
+      List<model.FuelRecordModel> records) {
+    // 传进来的是倒序（新→旧），先转成时间正序
+    final asc = records.reversed.toList();
+    final result = <int, double?>{};
+
+    // 关键：油和电各自维护锚点与累加，绝不跨类型相加
+    // （混动车同时有加油和充电记录，混在一起会把 kWh 当升算）
+    final Map<String, int> anchorIdx = {};
+    final Map<String, double> quantitySum = {};
+
+    for (var i = 0; i < asc.length; i++) {
+      final r = asc[i];
+      final type = r.energyType;
+      final anchor = anchorIdx[type];
+
+      if (anchor == null) {
+        result[r.id] = null;
+        if (r.isFullTank) anchorIdx[type] = i;
+        continue;
+      }
+
+      quantitySum[type] = (quantitySum[type] ?? 0) + r.fuelAmount;
+
+      if (r.isFullTank) {
+        final dist = r.odometer - asc[anchor].odometer;
+        result[r.id] =
+            dist > 0 ? (quantitySum[type]! / dist) * 100 : null;
+        anchorIdx[type] = i;
+        quantitySum[type] = 0;
+      } else {
+        result[r.id] = null;
+      }
+    }
+
+    return result;
   }
 
   // 单个记录卡片 - 全新设计
@@ -204,9 +342,9 @@ class RecordsScreen extends ConsumerWidget {
     BuildContext context,
     WidgetRef ref,
     model.FuelRecordModel record,
-    double? previousOdometer,
+    double? fuelConsumption,
   ) {
-    final fuelConsumption = record.calculateFuelConsumption(previousOdometer);
+    final settings = ref.watch(settingsProvider).settings;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 10),
@@ -232,7 +370,7 @@ class RecordsScreen extends ConsumerWidget {
                     height: 44,
                     decoration: BoxDecoration(
                       color: record.isFullTank
-                          ? Theme.of(context).colorScheme.primary.withOpacity(0.1)
+                          ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.1)
                           : Theme.of(context).colorScheme.surfaceContainerHighest,
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -271,7 +409,7 @@ class RecordsScreen extends ConsumerWidget {
                         Row(
                           children: [
                             Text(
-                              '${record.fuelAmount.toStringAsFixed(1)}L',
+                              '${record.fuelAmount.toStringAsFixed(1)}${record.energyType == 'electric' ? 'kWh' : 'L'}',
                               style: Theme.of(context).textTheme.titleSmall?.copyWith(
                                 fontWeight: FontWeight.w600,
                               ),
@@ -304,7 +442,7 @@ class RecordsScreen extends ConsumerWidget {
                             ),
                             const SizedBox(width: 3),
                             Text(
-                              '${record.odometer.toStringAsFixed(0)}km',
+                              '${UnitConverter.distance(record.odometer, settings.distanceUnit).toStringAsFixed(0)}${UnitConverter.distanceSymbol(settings.distanceUnit)}',
                               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                                 color: Theme.of(context).colorScheme.onSurfaceVariant,
                               ),
@@ -348,11 +486,11 @@ class RecordsScreen extends ConsumerWidget {
                           margin: const EdgeInsets.only(top: 4),
                           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                           decoration: BoxDecoration(
-                            color: _getFuelConsumptionColor(fuelConsumption).withOpacity(0.1),
+                            color: _getFuelConsumptionColor(fuelConsumption).withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(6),
                           ),
                           child: Text(
-                            '${fuelConsumption.toStringAsFixed(1)}L/100km',
+                            '${fuelConsumption.toStringAsFixed(1)}${record.energyType == 'electric' ? 'kWh/100km' : 'L/100km'}',
                             style: TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.w600,
@@ -400,7 +538,7 @@ class RecordsScreen extends ConsumerWidget {
       margin: const EdgeInsets.only(right: 4),
       padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(4),
       ),
       child: Text(
