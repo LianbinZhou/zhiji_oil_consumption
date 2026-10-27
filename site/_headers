@@ -1,0 +1,15 @@
+# 所有 APK 强制下载，并声明正确的 MIME
+/*.apk
+  Content-Type: application/vnd.android.package-archive
+  Content-Disposition: attachment
+  Cache-Control: public, max-age=3600
+
+# HTML 每次都回源校验，改完立即生效
+/*.html
+  Cache-Control: public, max-age=0, must-revalidate
+
+# 安全头（纯静态页，收紧一点没坏处）
+/*
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
+  Referrer-Policy: no-referrer-when-downgrade

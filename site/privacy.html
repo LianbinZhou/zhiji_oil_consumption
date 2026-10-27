@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>隐私说明 — 智记能耗</title>
+<link rel="icon" href="./icon.png">
+<style>
+:root{--orange:#FF7A45;--orange-dark:#E85D2A;--bg:#FFF9F5;--text:#2B2118;--muted:#8A7A6D;--line:#F0E4DA}
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",Arial,sans-serif;
+  background:var(--bg);color:var(--text);line-height:1.8;
+  padding:24px 20px 60px;-webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:680px;margin:0 auto}
+a{color:var(--orange-dark)}
+h1{font-size:23px;margin-bottom:6px}
+.sub{color:var(--muted);font-size:13px;margin-bottom:28px}
+h2{font-size:17px;margin:30px 0 10px;padding-top:6px;border-top:1px solid var(--line)}
+h2:first-of-type{border-top:none;margin-top:18px}
+p,li{font-size:14.5px;margin-bottom:10px}
+ul{padding-left:22px}
+code{background:#F7F1EB;padding:1px 5px;border-radius:4px;font-family:ui-monospace,Consolas,monospace;font-size:12.5px}
+.box{background:#FFF4ED;border:1px solid #FFDCC8;border-radius:12px;padding:14px 16px;margin:14px 0;font-size:14px}
+.box b{color:#B4491A}
+table{width:100%;border-collapse:collapse;margin:12px 0;font-size:13.5px}
+th,td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--line)}
+th{color:var(--muted);font-weight:600;font-size:12.5px}
+.back{display:inline-block;margin-bottom:20px;font-size:13.5px;text-decoration:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<a class="back" href="./">← 返回首页</a>
+
+<h1>隐私说明</h1>
+<div class="sub">最后更新：2026-10-27 · 对应版本 v1.2.1</div>
+
+<div class="box">
+<b>一句话：这个 App 不收集任何信息，因为它在技术上就没有这个能力。</b><br>
+安装包里没有 <code>INTERNET</code> 权限。没有这个权限，Android 内核会直接拒绝任何网络连接。
+不是"我们承诺不上传"，是"系统根本不让它连网"。
+</div>
+
+<h2>申请了哪些权限</h2>
+<p><b>零个。</b>安装时不会弹出任何权限请求。</p>
+<p>没有存储权限、没有定位、没有通讯录、没有设备标识符、没有相机、没有通知。</p>
+<p>你可能会在设置里看到一条 <code>DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION</code>，那是 AndroidX 框架自动加的<b>签名级</b>权限，不涉及用户授权，应用商店不会展示。</p>
+
+<h2>数据存在哪</h2>
+<table>
+  <tr><th>数据</th><th>位置</th></tr>
+  <tr><td>加油/充电记录、车辆、保养、费用</td><td>手机本地的 SQLite 数据库 <code>zhiji_oil.db</code></td></tr>
+  <tr><td>主题、单位、自定义保养项目</td><td>手机本地的 SharedPreferences</td></tr>
+</table>
+<p>全部在应用的私有目录里。卸载 App 时，系统会一并删除。</p>
+<p><b>没有云端。没有账号。没有任何服务器。</b></p>
+
+<h2>什么时候会把数据传出去</h2>
+<p><b>只有一种情况：你主动点「导出」。</b></p>
+<p>导出时走的是 Android 系统的文件选择器（SAF），文件写到你指定的位置。整个过程不经过网络，也不需要存储权限。</p>
+
+<h2>第三方组件</h2>
+<p>App 用了若干开源库（Flutter 框架、Drift 数据库、fl_chart 图表等），全部是本地运行，没有一个是统计/广告/崩溃上报 SDK。</p>
+<p>完整依赖清单见 <a href="https://github.com/LianbinZhou/zhiji_oil_consumption/blob/main/pubspec.yaml" target="_blank" rel="noopener">pubspec.yaml</a>。</p>
+
+<h2>你怎么自己验证</h2>
+<ul>
+  <li><b>看源码</b>：<a href="https://github.com/LianbinZhou/zhiji_oil_consumption" target="_blank" rel="noopener">github.com/LianbinZhou/zhiji_oil_consumption</a>，MIT 协议</li>
+  <li><b>看安装包的权限</b>：任何 APK 分析工具（如 <code>aapt2 dump badging</code>）都能列出 <code>uses-permission</code>，会看到它是空的</li>
+  <li><b>校验完整性</b>：每个版本都附 SHA256，<code>Get-FileHash</code> 对一下就知道有没有被改过</li>
+  <li><b>断网测试</b>：把手机开飞行模式，App 功能完全正常——因为它本来就不需要网</li>
+</ul>
+
+<h2>关于我</h2>
+<p>个人项目，非商业。没有公司、没有团队、没有融资，因此也没有任何把数据变现的动机。</p>
+<p>如果哪天不维护了，代码是 MIT 开放的，任何人都能接着编译。</p>
+
+<h2>联系方式</h2>
+<p>问题、建议、bug 反馈：<a href="https://github.com/LianbinZhou/zhiji_oil_consumption/issues" target="_blank" rel="noopener">GitHub Issues</a></p>
+
+</div>
+</body>
+</html>

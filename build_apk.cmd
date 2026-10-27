@@ -39,22 +39,22 @@ echo   version !VERSION! (build !BUILD_NO!)
 echo ============================================
 echo.
 
-echo [1/5] flutter pub get
+echo [1/6] flutter pub get
 call flutter pub get
 if errorlevel 1 goto failed
 
 echo.
-echo [2/5] flutter analyze
+echo [2/6] flutter analyze
 call flutter analyze
 if errorlevel 1 goto failed
 
 echo.
-echo [3/5] flutter test
+echo [3/6] flutter test
 call flutter test
 if errorlevel 1 goto failed
 
 echo.
-echo [4/5] Building release APK (split per abi)
+echo [4/6] Building release APK (split per abi)
 call flutter build apk --release --split-per-abi
 if errorlevel 1 goto failed
 
@@ -64,7 +64,7 @@ REM Universal APK is dangerous (versionCode 3 < 2003 = downgrade). Remove it.
 if exist "%APK_DIR%\app-release.apk" del /q "%APK_DIR%\app-release.apk"
 
 echo.
-echo [5/5] Copying output
+echo [5/6] Copying output
 if not exist "%SRC_APK%" goto noapk
 if not exist "%DIST%" mkdir "%DIST%"
 copy /y "%SRC_APK%" "%DIST%\%OUT_NAME%" >nul
@@ -78,6 +78,14 @@ for /f "skip=1 delims=" %%h in ('certutil -hashfile "!DIST!\!OUT_NAME!" SHA256 2
     > "!DIST!\!OUT_NAME!.sha256" echo %%h
   )
 )
+
+REM 第 6 步：同步网站目录（site/）
+REM   把新 APK 放进 site/、改首页的版本号和下载链接、重打 dist\zhiji-site.zip
+REM   网站提示：只发 pages.dev，不发 workers.dev（后者国内 DNS 被污染）
+echo.
+echo [6/6] Syncing website (site/)
+powershell -NoProfile -ExecutionPolicy Bypass -File "tools\update_site.ps1" -ApkPath "%DIST%\%OUT_NAME%" -Version "!VERSION!"
+if errorlevel 1 echo   WARN: website sync failed, site/ not updated
 
 echo.
 echo ============================================

@@ -35,3 +35,6 @@ android/key.properties
 
 # Claude
 .claude/
+
+# 网站目录里的 APK 由 build_apk.cmd 自动生成，不进仓库（每次发版会变，21MB）
+site/*.apk

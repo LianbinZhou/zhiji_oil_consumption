@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>智记能耗 — 不登录、不联网、不收费的油耗记录</title>
+<meta name="description" content="智记能耗：本地记账的汽车油耗 App。免费、无广告、不用登录、数据只存在你自己手机里。">
+<meta name="theme-color" content="#FF7A45">
+<link rel="icon" href="./icon.png">
+<style>
+/* 全部内联，零外部请求 —— 国内打开不依赖任何国外 CDN */
+:root{
+  --orange:#FF7A45;
+  --orange-dark:#E85D2A;
+  --bg:#FFF9F5;
+  --card:#FFFFFF;
+  --text:#2B2118;
+  --muted:#8A7A6D;
+  --line:#F0E4DA;
+  --green:#16A34A;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{max-width:100%;overflow-x:hidden}
+html{-webkit-text-size-adjust:100%}
+body{
+  overflow-wrap:break-word;word-wrap:break-word;
+  font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei","Helvetica Neue",Arial,sans-serif;
+  background:var(--bg);color:var(--text);line-height:1.65;
+  -webkit-font-smoothing:antialiased;
+  padding:0 0 48px;
+}
+.wrap{max-width:720px;margin:0 auto;padding:0 20px}
+
+/* ============ 头部 ============ */
+.hero{
+  background:linear-gradient(150deg,#FF8A50 0%,#FF6A2E 100%);
+  color:#fff;padding:44px 20px 40px;text-align:center;
+  border-radius:0 0 28px 28px;
+}
+.hero img{width:76px;height:76px;border-radius:20px;box-shadow:0 6px 20px rgba(0,0,0,.18);background:#fff}
+.hero h1{font-size:26px;font-weight:700;margin:16px 0 6px;letter-spacing:.5px}
+.hero .sub{font-size:14.5px;opacity:.95;line-height:1.6}
+.dl{
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  margin-top:24px;padding:16px 38px;
+  background:#fff;color:var(--orange-dark);
+  font-size:17px;font-weight:700;text-decoration:none;
+  border-radius:999px;box-shadow:0 6px 22px rgba(0,0,0,.16);
+  transition:transform .12s ease,box-shadow .12s ease;
+}
+.dl:active{transform:scale(.97);box-shadow:0 3px 12px rgba(0,0,0,.18)}
+.dl svg{width:20px;height:20px;fill:currentColor}
+.meta{font-size:12.5px;opacity:.9;margin-top:12px}
+.alt{font-size:12.5px;margin-top:14px;opacity:.92}
+.alt a{color:#fff;text-decoration:underline;text-underline-offset:3px}
+
+/* ============ 通用区块 ============ */
+section{margin-top:38px}
+h2{font-size:18px;font-weight:700;margin-bottom:14px;letter-spacing:.3px}
+h2 .n{color:var(--orange);margin-right:6px}
+
+/* ============ 三条原则 ============ */
+.pillars{display:flex;flex-direction:column;gap:8px}
+.pillar{
+  background:var(--card);border:1px solid var(--line);border-radius:14px;
+  padding:13px 16px;display:flex;align-items:center;gap:14px;text-align:left;
+}
+.pillar .big{flex:0 0 72px;font-size:14.5px;font-weight:700;color:var(--orange-dark)}
+.pillar .small{flex:1;min-width:0;font-size:12.5px;color:var(--muted);line-height:1.5}
+
+/* ============ 功能列表 ============ */
+.feats{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:6px 18px}
+.feat{display:flex;gap:12px;padding:14px 0;border-bottom:1px solid var(--line)}
+.feat:last-child{border-bottom:none}
+.feat .ico{font-size:19px;line-height:1.5;flex:0 0 auto}
+.feat>div:last-child{flex:1;min-width:0}
+.feat b{display:block;font-size:14.5px;font-weight:600;margin-bottom:2px}
+.feat span{font-size:12.8px;color:var(--muted);line-height:1.55}
+
+/* ============ 安装步骤 ============ */
+.steps{counter-reset:s;list-style:none}
+.steps li{
+  counter-increment:s;position:relative;padding:0 0 18px 40px;
+  font-size:14px;line-height:1.6;
+}
+.steps li::before{
+  content:counter(s);position:absolute;left:0;top:1px;
+  width:26px;height:26px;border-radius:50%;
+  background:var(--orange);color:#fff;font-size:13px;font-weight:700;
+  display:flex;align-items:center;justify-content:center;
+}
+.steps li:last-child{padding-bottom:0}
+.steps small{display:block;color:var(--muted);font-size:12.3px;margin-top:3px}
+
+/* ============ 更新日志 ============ */
+.log{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:6px 18px}
+.log .row{display:flex;gap:12px;padding:12px 0;border-bottom:1px solid var(--line);font-size:13.2px}
+.log .row:last-child{border-bottom:none}
+.log .v{flex:0 0 62px;font-weight:700;color:var(--orange-dark);font-size:12.8px}
+.log .t{flex:1;color:var(--text);line-height:1.55}
+.log .row.old .v{color:var(--muted);font-weight:500}
+.log .more{text-align:center;padding:12px 0 4px;font-size:12.8px}
+.log .more a{color:var(--orange-dark);text-decoration:none}
+
+/* ============ 提示框 ============ */
+.note{
+  background:#FFF4ED;border:1px solid #FFDCC8;border-radius:12px;
+  padding:13px 15px;font-size:13px;color:#8A4B24;line-height:1.6;margin-top:12px;
+}
+.note b{color:#B4491A}
+
+/* ============ 折叠详情 ============ */
+details{
+  background:var(--card);border:1px solid var(--line);border-radius:14px;
+  padding:0 18px;margin-top:12px;
+}
+details summary{
+  cursor:pointer;padding:14px 0;font-size:13.5px;font-weight:600;
+  color:var(--muted);list-style:none;
+}
+details summary::-webkit-details-marker{display:none}
+details summary::after{content:" ▾";color:var(--muted)}
+details[open] summary::after{content:" ▴"}
+details .body{padding:0 0 16px;font-size:12.8px;color:var(--muted);line-height:1.7}
+details code{
+  background:#F7F1EB;padding:1px 5px;border-radius:4px;
+  font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:11.8px;
+}
+
+/* ============ 页脚 ============ */
+footer{
+  margin-top:44px;padding-top:22px;border-top:1px solid var(--line);
+  text-align:center;font-size:12.3px;color:var(--muted);line-height:2;
+}
+footer a{color:var(--orange-dark);text-decoration:none}
+
+@media (max-width:480px){
+  .hero h1{font-size:23px}
+  .dl{padding:15px 30px;font-size:16px}
+  /* 三条原则：竖排，一行一条，文字不再挤 */
+  .pillars{grid-template-columns:1fr;gap:8px}
+  .pillar{display:flex;align-items:center;gap:12px;text-align:left;padding:12px 15px}
+  .pillar .big{flex:0 0 68px;font-size:14px}
+  .pillar .small{margin-top:0;font-size:12.5px}
+  .feat span{font-size:12.5px}
+}
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <img src="./icon.png" alt="智记能耗">
+  <h1>智记能耗</h1>
+  <div class="sub">
+    记加油、算油耗、管保养<br>
+    免费 · 无广告 · 不用登录 · 数据只在你手机里
+  </div>
+
+  <a class="dl" href="./zhiji_oil_v1.2.1.apk" download>
+    <svg viewBox="0 0 24 24"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 19h16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+    下载 Android 版
+  </a>
+
+  <div class="meta">v1.2.1 · 21.4 MB · Android 7.0 及以上 · 64 位</div>
+  <div class="alt">下载慢？<a href="https://github.com/LianbinZhou/zhiji_oil_consumption/releases" target="_blank" rel="noopener">走 GitHub 备用</a></div>
+</div>
+
+<div class="wrap">
+
+  <section>
+    <h2><span class="n">·</span>为什么可以放心装</h2>
+    <div class="pillars">
+      <div class="pillar">
+        <div class="big">免费</div>
+        <div class="small">没有会员<br>没有广告</div>
+      </div>
+      <div class="pillar">
+        <div class="big">只在本地</div>
+        <div class="small">数据存你手机<br>不传任何服务器</div>
+      </div>
+      <div class="pillar">
+        <div class="big">零权限</div>
+        <div class="small">安装时<br>不问你要任何权限</div>
+      </div>
+    </div>
+
+    <details>
+      <summary>给较真的人：这三点怎么证明</summary>
+      <div class="body">
+        <p><b>不联网</b>：安装包的 AndroidManifest 里没有 <code>INTERNET</code> 权限。没有这个权限，系统内核直接拒绝任何网络连接——这不是"承诺不上传"，是物理上做不到。</p>
+        <p style="margin-top:8px"><b>零权限</b>：整个清单里没有任何一条需要你授权的权限（不含存储、不含定位、不含设备信息）。导出数据走系统的文件选择器，不需要存储权限。</p>
+        <p style="margin-top:8px"><b>可验证</b>：代码全部开源，任何人都能自己审计。每次发版都附 SHA256 校验值。</p>
+        <p style="margin-top:8px"><a href="https://github.com/LianbinZhou/zhiji_oil_consumption" target="_blank" rel="noopener" style="color:var(--orange-dark)">→ 看源码</a></p>
+      </div>
+    </details>
+  </section>
+
+  <section>
+    <h2><span class="n">·</span>能干什么</h2>
+    <div class="feats">
+      <div class="feat">
+        <div class="ico">⛽</div>
+        <div>
+          <b>记加油，不用自己算升数</b>
+          <span>填「单价 + 机显金额」，升数自动算准。有优惠（券、会员价）单独填，实付自动扣。</span>
+        </div>
+      </div>
+      <div class="feat">
+        <div class="ico">📊</div>
+        <div>
+          <b>算油耗，两种方法</b>
+          <span>加满法（加满到加满）和亮灯法（亮灯到亮灯），哪条数据够用哪条。算不出来就显示「—」，不编数字。</span>
+        </div>
+      </div>
+      <div class="feat">
+        <div class="ico">🔧</div>
+        <div>
+          <b>记保养、记费用</b>
+          <span>机油、刹车片、保险、停车费都能记，项目可以自己加。</span>
+        </div>
+      </div>
+      <div class="feat">
+        <div class="ico">🚗</div>
+        <div>
+          <b>多辆车分开算</b>
+          <span>油车、电车、混动都行，每辆车的账互不干扰。</span>
+        </div>
+      </div>
+      <div class="feat">
+        <div class="ico">📤</div>
+        <div>
+          <b>随时导出，不锁死你</b>
+          <span>Excel 报表给人看，JSON 备份用来换手机/重装后恢复。格式是纯文本，任何工具都能读。</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="n">·</span>怎么装</h2>
+    <ol class="steps">
+      <li>点上面的「下载 Android 版」<small>文件约 21 MB，存在手机的"下载"文件夹里</small></li>
+      <li>打开文件，系统会提示「禁止安装未知来源应用」<small>点「设置」→ 允许这个来源 → 返回继续</small></li>
+      <li>安装完成，直接打开<small>不需要注册、不需要联网，设好第一辆车就能开始记</small></li>
+    </ol>
+
+    <div class="note">
+      <b>升级前先备份。</b>如果你已经在用旧版本，先去「设置 → 导出备份」存一份 JSON，再装新版本导入。
+      虽然覆盖安装不会丢数据，但万一出问题，有备份才有退路。
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="n">·</span>更新日志</h2>
+    <div class="log">
+      <div class="row">
+        <div class="v">v1.2.1</div>
+        <div class="t">修好「加完车、录完记录，首页不刷新要退出重进」的问题</div>
+      </div>
+      <div class="row">
+        <div class="v">v1.2.0</div>
+        <div class="t">录入改成「单价 + 机显金额」自动算升数，不用再手填加油量</div>
+      </div>
+      <div class="row old">
+        <div class="v">v1.1.5</div>
+        <div class="t">修数值输入校验、清理残留代码</div>
+      </div>
+      <div class="row old">
+        <div class="v">v1.1.3</div>
+        <div class="t">修 4 个严重 bug（保养保存失败、能源类型被重置等）</div>
+      </div>
+      <div class="row old">
+        <div class="v">v1.1.0</div>
+        <div class="t">支持油站优惠（机显金额 ≠ 实付金额）</div>
+      </div>
+      <div class="more"><a href="https://github.com/LianbinZhou/zhiji_oil_consumption/releases" target="_blank" rel="noopener">查看完整更新记录 →</a></div>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="n">·</span>常见问题</h2>
+
+    <details>
+      <summary>换手机 / 重装，数据怎么办</summary>
+      <div class="body">
+        在旧手机「设置 → 导出备份」存一份 JSON 到文件管理器，传到新手机，在新手机上「设置 → 恢复数据」选它就行。<br><br>
+        <b>没有云端同步是故意的</b>——有云就等于有服务器，有服务器就能被要求交数据。<br><br>
+        恢复时会问你「覆盖式恢复」还是「追加导入」：<b>换手机选覆盖</b>，只想合并数据选追加。
+      </div>
+    </details>
+
+    <details>
+      <summary>为什么应用商店搜不到</summary>
+      <div class="body">
+        没上架。上架要交年费、要过审核、要署真名，还可能被要求加广告和统计 SDK。<br><br>
+        这个 App 的原则是「免费、数据在本地、不用登录」，上架和这三条冲突，所以只在 GitHub 和这里发布。
+      </div>
+    </details>
+
+    <details>
+      <summary>装的时候提示"文件损坏"或"解析包错误"</summary>
+      <div class="body">
+        两种可能：<br>
+        ① <b>下载不完整</b>——21 MB 的文件只下了一半。删掉重下，别用移动网络边下边断。<br>
+        ② <b>手机不是 64 位</b>——2020 年前的老机型（尤其 32 位系统）装不了。<br><br>
+        校验下载是否完整：文件大小应该是 21.4 MB。
+      </div>
+    </details>
+
+    <details>
+      <summary>会不会哪天突然收费或者加广告</summary>
+      <div class="body">
+        代码是 MIT 协议开源的。就算原作者想加，任何人都能拿现有代码自己编译一份，不需要经过任何人同意。<br><br>
+        这是"承诺"之外的一层保险——你不必信任我，你只需要信任代码是公开的。
+      </div>
+    </details>
+  </section>
+
+  <footer>
+    <div><a href="https://github.com/LianbinZhou/zhiji_oil_consumption" target="_blank" rel="noopener">GitHub 源码</a> · <a href="./privacy.html">隐私说明</a> · MIT 协议</div>
+    <div style="margin-top:6px;opacity:.75">一个不用登录、不联网的记账工具 · 因为这个需求值得被认真对待</div>
+  </footer>
+
+</div>
+</body>
+</html>
