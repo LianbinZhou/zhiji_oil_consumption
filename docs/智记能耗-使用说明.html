@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>智记能耗 - 使用说明</title>
+<style>
+@page { size: A4; margin: 14mm 15mm; }
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: "Microsoft YaHei", "PingFang SC", "Hiragino Sans GB", sans-serif;
+  color: #2B2118;
+  font-size: 10.5pt;
+  line-height: 1.68;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+/* ============ 第一页：封面 ============ */
+.cover {
+  background: linear-gradient(150deg, #FF8A50 0%, #FF6A2E 100%);
+  color: #fff;
+  border-radius: 14px;
+  padding: 26px 30px 24px;
+  margin-bottom: 20px;
+}
+.cover-top { display: flex; align-items: center; gap: 16px; }
+.cover-top img.appicon { width: 62px; height: 62px; border-radius: 15px; background: #fff; padding: 2px; }
+.cover h1 { font-size: 25pt; font-weight: 700; letter-spacing: 1px; }
+.cover .tagline { font-size: 11.5pt; opacity: .96; margin-top: 2px; }
+.cover .pillars { display: flex; gap: 8px; margin-top: 18px; }
+.cover .pillar {
+  flex: 1; background: rgba(255,255,255,.17); border-radius: 9px;
+  padding: 9px 6px; text-align: center; font-size: 9.5pt;
+}
+.cover .pillar b { display: block; font-size: 11pt; margin-bottom: 1px; }
+
+/* ============ 区块标题 ============ */
+h2 {
+  font-size: 13pt; font-weight: 700; margin: 22px 0 10px;
+  padding-left: 9px; border-left: 4px solid #FF7A45;
+  line-height: 1.3;
+}
+h2:first-of-type { margin-top: 0; }
+
+/* ============ 下载块 ============ */
+.download {
+  display: flex; align-items: center; gap: 18px;
+  border: 2px dashed #FFB894; border-radius: 12px;
+  padding: 14px 18px; background: #FFF9F5;
+  margin-top: 6px;
+}
+.download img.qr { width: 96px; height: 96px; }
+.download .txt { flex: 1; }
+.download .txt .big { font-size: 12.5pt; font-weight: 700; color: #E85D2A; }
+.download .txt .url {
+  font-family: Consolas, monospace; font-size: 11pt;
+  color: #2B2118; margin: 4px 0 3px; font-weight: 700;
+}
+.download .txt .note { font-size: 9pt; color: #8A7A6D; }
+
+/* ============ 截图 ============ */
+.shots { display: flex; gap: 10px; margin-top: 8px; }
+.shot { flex: 1; text-align: center; }
+.shot img {
+  width: 100%; border-radius: 8px; border: 1px solid #F0E4DA;
+  display: block;
+}
+.shot .cap { font-size: 8.5pt; color: #8A7A6D; margin-top: 4px; }
+
+/* ============ 表格 ============ */
+table { width: 100%; border-collapse: collapse; margin: 8px 0; font-size: 9.5pt; }
+th, td { text-align: left; padding: 6px 9px; border-bottom: 1px solid #F0E4DA; vertical-align: top; }
+th { background: #FFF4ED; color: #B4491A; font-weight: 700; font-size: 9pt; }
+td b { color: #B4491A; }
+
+/* ============ 步骤 ============ */
+ol.steps { list-style: none; counter-reset: s; margin-top: 6px; }
+ol.steps li {
+  counter-increment: s; position: relative;
+  padding: 0 0 9px 30px; font-size: 10pt;
+}
+ol.steps li::before {
+  content: counter(s); position: absolute; left: 0; top: 0;
+  width: 20px; height: 20px; border-radius: 50%;
+  background: #FF7A45; color: #fff;
+  font-size: 9pt; font-weight: 700; text-align: center; line-height: 20px;
+}
+ol.steps li:last-child { padding-bottom: 0; }
+ol.steps small { display: block; color: #8A7A6D; font-size: 9pt; margin-top: 1px; }
+
+/* ============ 提示框 ============ */
+.note-box {
+  background: #FFF4ED; border: 1px solid #FFDCC8; border-radius: 8px;
+  padding: 10px 14px; font-size: 9.5pt; color: #8A4B24; line-height: 1.6;
+  margin: 10px 0;
+}
+.note-box b { color: #B4491A; }
+
+/* ============ 页脚 ============ */
+.footer {
+  margin-top: 22px; padding-top: 12px; border-top: 1px solid #F0E4DA;
+  font-size: 8.5pt; color: #A89887; text-align: center; line-height: 1.8;
+}
+
+/* 分页控制 */
+.page-break { page-break-before: always; }
+.no-break { page-break-inside: avoid; }
+</style>
+</head>
+<body>
+
+<!-- ==================== 第 1 页 ==================== -->
+<div class="cover">
+  <div class="cover-top">
+    <img class="appicon" src="img/icon.png" alt="图标">
+    <div>
+      <h1>智记能耗</h1>
+      <div class="tagline">记加油 · 算油耗 · 管保养</div>
+    </div>
+  </div>
+  <div class="pillars">
+    <div class="pillar"><b>免费</b>无广告 无会员</div>
+    <div class="pillar"><b>不用登录</b>装完就能用</div>
+    <div class="pillar"><b>数据在本地</b>不上传任何服务器</div>
+  </div>
+</div>
+
+<h2>下载安装</h2>
+<div class="download">
+  <img class="qr" src="img/qr.png" alt="扫码下载">
+  <div class="txt">
+    <div class="big">用手机扫这个码，或直接访问网址</div>
+    <div class="url">zhiji-oil.pages.dev</div>
+    <div class="note">扫码后点「下载 Android 版」，约 21 MB。目前只支持安卓手机（64 位，Android 7.0 以上），iPhone 装不了。</div>
+  </div>
+</div>
+
+<h2>这是什么</h2>
+<p>一个记录汽车油耗的安卓 App。每次加油记一笔，它帮你算百公里油耗、每公里成本、每月花了多少。</p>
+<p style="margin-top:6px">和市面上那些油耗 App 的区别只有一个：<b>它不联网、不要账号、没有广告</b>。你记的数据只存在你自己手机里，卸载就没了，谁也拿不走。</p>
+
+<h2>为什么敢这么保证</h2>
+<table>
+  <tr>
+    <th style="width:22%">说法</th>
+    <th>怎么做到的</th>
+  </tr>
+  <tr>
+    <td><b>不联网</b></td>
+    <td>安装包里没有「联网」权限。安卓系统层面就不让它连网——不是承诺，是做不到。</td>
+  </tr>
+  <tr>
+    <td><b>零权限</b></td>
+    <td>安装时不会问你要任何权限。没有定位、没有存储、没有通讯录。</td>
+  </tr>
+  <tr>
+    <td><b>不会被卖</b></td>
+    <td>代码全部开源，谁都能看。就算哪天原作者想加广告，别人也能拿现有代码自己编译一份。</td>
+  </tr>
+</table>
+
+<!-- ==================== 第 2 页 ==================== -->
+<div class="page-break"></div>
+
+<h2>界面长这样</h2>
+<div class="shots">
+  <div class="shot">
+    <img src="img/shot_home.png" alt="首页">
+    <div class="cap">首页：本月花费 / 记录 / 里程 / 油耗</div>
+  </div>
+  <div class="shot">
+    <img src="img/shot_records.png" alt="记录列表">
+    <div class="cap">记录列表：每笔加油和该段油耗</div>
+  </div>
+  <div class="shot">
+    <img src="img/shot_form.png" alt="录入">
+    <div class="cap">录入：填单价+机显金额，升数自动算</div>
+  </div>
+</div>
+
+<h2>几个实用功能</h2>
+<table>
+  <tr>
+    <th style="width:28%">功能</th>
+    <th>说明</th>
+  </tr>
+  <tr>
+    <td><b>不用自己算升数</b></td>
+    <td>填「单价」和「机显金额」，升数自动算出来。有优惠（券、会员价）另填一栏，实付自动扣。<br>
+      <span style="color:#8A7A6D;font-size:9pt">例：单价 8.28、机显 801、优惠 20.5 → 自动算出 96.74 升、实付 780.5 元。</span></td>
+  </tr>
+  <tr>
+    <td><b>两种油耗算法</b></td>
+    <td>加满法和亮灯法都有，哪条数据够用哪条。数据不够就显示「—」，不会编数字骗你。</td>
+  </tr>
+  <tr>
+    <td><b>多辆车分开算</b></td>
+    <td>油车、电车、混动都能记，各算各的互不干扰。</td>
+  </tr>
+  <tr>
+    <td><b>记保养和费用</b></td>
+    <td>机油、刹车片、保险、停车费都能记，项目可以自己加。</td>
+  </tr>
+  <tr>
+    <td><b>随时导出</b></td>
+    <td>Excel 报表给人看，JSON 备份用来换手机。数据不锁在这个 App 里。</td>
+  </tr>
+  <tr>
+    <td><b>左滑删除</b></td>
+    <td>记错了一条，往左一滑就删，删之前会问你一次。</td>
+  </tr>
+</table>
+
+<!-- ==================== 第 3 页 ==================== -->
+<div class="page-break"></div>
+
+<h2>怎么装（三步）</h2>
+<ol class="steps">
+  <li>
+    扫码或打开 <b>zhiji-oil.pages.dev</b>，点「下载 Android 版」
+    <small>文件约 21 MB，会存到手机的「下载」文件夹</small>
+  </li>
+  <li>
+    打开下载好的文件，系统会提示「禁止安装未知来源应用」
+    <small>点「设置」→ 允许这个来源 → 返回继续安装</small>
+  </li>
+  <li>
+    安装完成后直接打开
+    <small>不需要注册、不需要联网，先添加一辆车就能开始记</small>
+  </li>
+</ol>
+
+<div class="note-box">
+  <b>如果你是替别人装：</b>可以让对方扫 PDF 里那个二维码，比传 APK 文件省事——群里传 21 MB 的文件有些手机下载会失败。
+</div>
+
+<h2>常见问题</h2>
+<table>
+  <tr>
+    <th style="width:32%">问题</th>
+    <th>答案</th>
+  </tr>
+  <tr>
+    <td><b>装的时候提示「文件损坏」或「解析包错误」</b></td>
+    <td>要么文件没下完整（21 MB 只下了一半，删掉重下，别用移动网络边下边断），要么手机不是 64 位（2020 年前的老机型可能装不了）。</td>
+  </tr>
+  <tr>
+    <td><b>换手机了，数据怎么迁</b></td>
+    <td>旧手机「设置 → 导出备份」存一个 JSON，传到新手机，在「设置 → 恢复数据」里选它。<br>
+      <span style="color:#8A7A6D;font-size:9pt">恢复时会问「覆盖式恢复」还是「追加导入」，换手机选覆盖。</span></td>
+  </tr>
+  <tr>
+    <td><b>应用商店怎么搜不到</b></td>
+    <td>没上架。上架要交年费、要审核、还可能被要求加广告和统计，和这个 App 的原则冲突。</td>
+  </tr>
+  <tr>
+    <td><b>iPhone 能用吗</b></td>
+    <td>暂时不行，只做了安卓。</td>
+  </tr>
+  <tr>
+    <td><b>会不会哪天突然收费</b></td>
+    <td>代码是 MIT 协议开源的，就算原作者想加收费，任何人也能拿现有代码自己编译一份，不用经过任何人同意。</td>
+  </tr>
+</table>
+
+<h2>遇到问题</h2>
+<p>这个 App 是一个个人项目，不是公司产品。有 bug 或有想要的功能，可以在 GitHub 上提：</p>
+<p style="font-family:Consolas,monospace;font-size:9.5pt;margin-top:4px">github.com/LianbinZhou/zhiji_oil_consumption/issues</p>
+
+<div class="footer">
+  智记能耗 v1.2.1 &nbsp;·&nbsp; MIT 开源 &nbsp;·&nbsp; 数据只存在你的手机里<br>
+  zhiji-oil.pages.dev &nbsp;·&nbsp; github.com/LianbinZhou/zhiji_oil_consumption
+</div>
+
+</body>
+</html>

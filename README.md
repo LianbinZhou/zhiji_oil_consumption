@@ -36,11 +36,26 @@
 3. 装完直接打开，不需要注册、不需要联网
 4. 如果你从旧版本升级：先在旧版里「设置 → 导出备份」，新装后再导入
 
-每个 Release 都附带 `.sha256` 文件，可以自行校验：
+每个 Release 都附带 `.sha256` 文件，可以自行校验。
+
+把 APK 和 `.sha256` 下到同一个目录，然后在这个目录里执行（**不用改文件名，`*` 会自己匹配**）：
 
 ```powershell
-Get-FileHash .\zhiji_oil_arm64_v1.0.0-3.apk -Algorithm SHA256
+# Windows：算出哈希，和 .sha256 文件里的值对比
+Get-FileHash .\zhiji_oil_arm64_*.apk -Algorithm SHA256
+
+# 或者让它自己比对（PowerShell 7）
+$apk = Get-ChildItem .\zhiji_oil_arm64_*.apk | Select-Object -First 1
+$expect = (Get-Content "$($apk.FullName).sha256" -Raw).Trim()
+$actual = (Get-FileHash $apk.FullName -Algorithm SHA256).Hash
+# 注意大小写：.sha256 里是小写，Get-FileHash 输出大写，统一转小写再比
+if ($actual.ToLower() -eq $expect.ToLower()) { "OK：文件完整" } else { "不一致，可能下载不完整" }
+
+# macOS / Linux：算出哈希，和 .sha256 文件里的那一行比对
+shasum -a 256 zhiji_oil_arm64_*.apk
 ```
+
+> 两个值一致 = 文件没被截断或篡改；不一致 = 重新下载。
 
 ---
 
