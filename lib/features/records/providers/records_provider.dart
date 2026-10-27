@@ -57,6 +57,12 @@ final latestRecordProvider = FutureProvider.family<model.FuelRecordModel?, int>(
   return record != null ? _convertFuelRecord(record) : null;
 });
 
+/// 能量记录「数据版本号」——每次增删改 +1
+///
+/// 用途：首页的 dashboardSummaryProvider / vehicleOverviewsProvider 是一次性
+/// FutureProvider，不加这个依赖就会出现「录完记录回首页，数字还是旧的」。
+final energyRecordsVersionProvider = StateProvider<int>((ref) => 0);
+
 // ==================== 记录操作Provider ====================
 
 /// 油耗记录操作Notifier
@@ -104,6 +110,8 @@ class RecordsNotifier extends AutoDisposeNotifier<List<model.FuelRecordModel>> {
     );
     
     await database.insertEnergyRecord(record);
+    ref.read(energyRecordsVersionProvider.notifier).state++;
+    ref.invalidateSelf();
   }
 
   /// 更新油耗记录
@@ -145,6 +153,8 @@ class RecordsNotifier extends AutoDisposeNotifier<List<model.FuelRecordModel>> {
     );
     
     await database.updateEnergyRecord(record);
+    ref.read(energyRecordsVersionProvider.notifier).state++;
+    ref.invalidateSelf();
   }
 
   /// 删除油耗记录
@@ -152,10 +162,14 @@ class RecordsNotifier extends AutoDisposeNotifier<List<model.FuelRecordModel>> {
     final database = ref.read(databaseProvider);
     
     final success = await database.deleteEnergyRecord(id);
-    
+
     if (!success) {
       throw Exception('删除失败');
     }
+
+    // 通知首页重算
+    ref.read(energyRecordsVersionProvider.notifier).state++;
+    ref.invalidateSelf();
   }
 }
 

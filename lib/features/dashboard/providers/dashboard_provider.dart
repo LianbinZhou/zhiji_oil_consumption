@@ -3,6 +3,7 @@ import '../../../data/database/app_database.dart';
 import '../../../data/models/vehicle.dart' as model;
 import '../../../data/models/fuel_record.dart' as model_record;
 import '../../vehicles/providers/vehicles_provider.dart';
+import '../../records/providers/records_provider.dart';
 import '../../statistics/providers/statistics_provider.dart'
     show weightedConsumption, consumptionDetail;
 import '../../../data/database/tables.dart' show EnergyTypes;
@@ -91,6 +92,9 @@ final selectedMonthProvider = StateProvider<DateTime>((ref) {
 final dashboardSummaryProvider =
     FutureProvider.family<DashboardSummary?, DateTime>((ref, month) async {
   try {
+    // 记录变化时重算（这个 provider 是一次性 FutureProvider，不 watch 就用旧值）
+    ref.watch(energyRecordsVersionProvider);
+
     final database = ref.watch(databaseProvider);
     final vehiclesNative = await database.getAllVehicles();
 
@@ -183,6 +187,12 @@ final dashboardSummaryProvider =
 
 final vehicleOverviewsProvider = FutureProvider<List<VehicleOverview>>((ref) async {
   try {
+    // 监听车辆列表的变化：新增/删除车辆后自动重算
+    // （不 watch 的话这个 FutureProvider 只查一次，加完车首页要退出重进才显示）
+    ref.watch(vehiclesStreamProvider);
+    // 记录变化时也重算（每辆车的最近记录/总里程/平均油耗都依赖它）
+    ref.watch(energyRecordsVersionProvider);
+
     final database = ref.watch(databaseProvider);
     final vehiclesNative = await database.getAllVehicles();
 

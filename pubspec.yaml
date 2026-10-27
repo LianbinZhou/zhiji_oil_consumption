@@ -9,7 +9,7 @@ repository: https://github.com/LianbinZhou/zhiji_oil_consumption
 license: MIT
 
 # 版本号: 主版本.次版本.修订号+构建号
-version: 1.2.0+17
+version: 1.2.1+18
 
 # Flutter SDK版本约束
 environment:
