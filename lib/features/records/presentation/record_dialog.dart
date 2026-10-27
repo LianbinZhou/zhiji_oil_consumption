@@ -30,10 +30,16 @@ class _RecordDialogState extends ConsumerState<RecordDialog> {
   final _fuelAmountController = TextEditingController();
   final _totalPriceController = TextEditingController();
   final _discountController = TextEditingController();
+  /// 机显金额（油枪上显示的那笔"应付"）——加了多少油由它 ÷ 单价反推
+  final _grossAmountController = TextEditingController();
 
   /// 用户是否手动改过「实付金额」
   /// 改过之后，数量/单价/优惠变动就不该再自动覆盖它（现实里实付经常和理论值不一致）
   bool _totalPriceManuallyEdited = false;
+
+  /// 用户是否手动改过「升数」
+  /// 手改之后就不再自动覆盖（油枪显示 96.74，公式算出来 96.7391，以油枪为准）
+  bool _quantityManuallyEdited = false;
   final _pricePerLiterController = TextEditingController();
   final _odometerController = TextEditingController();
   final _stationNameController = TextEditingController();
@@ -93,6 +99,10 @@ class _RecordDialogState extends ConsumerState<RecordDialog> {
       _discountController.text =
           widget.record!.discount > 0 ? widget.record!.discount.toString() : '';
       _pricePerLiterController.text = widget.record!.pricePerLiter.toString();
+      // 机显金额 = 实付 + 优惠（库里只存这两个，机显是推算出来的）
+      _grossAmountController.text =
+          (widget.record!.totalPrice + widget.record!.discount)
+              .toStringAsFixed(2);
       _odometerController.text = widget.record!.odometer.toString();
       _isFullTank = widget.record!.isFullTank;
       _isLightOn = widget.record!.isLightOn;
@@ -170,16 +180,29 @@ class _RecordDialogState extends ConsumerState<RecordDialog> {
   ///
   /// 为什么这么算：油站标价和你实际付的钱经常不一样（会员价、券、活动）。
   /// 统计里的「每公里成本」「均价」都用实付，所以输入框显示的是扣完优惠的金额。
+  /// 按「单价 + 机显金额」反推升数，再算实付
+  ///
+  /// 为什么升数必须从「机显金额」算：
+  ///   机显金额 = 单价 × 升数      ← 油枪上的应付
+  ///   实付金额 = 机显金额 − 优惠   ← 实际扣款
+  /// 用「实付 ÷ 单价」是错的 —— 优惠不是按比例打折，会把升数算少
+  /// （例：单价 8.28、机显 801、实付 780.5 → 正确 96.74 L，错算 94.26 L）。
   void _calculatePrice() {
-    final fuelAmount = double.tryParse(_fuelAmountController.text);
-    final pricePerLiter = double.tryParse(_pricePerLiterController.text);
+    final unitPrice = double.tryParse(_pricePerLiterController.text);
+    final gross = double.tryParse(_grossAmountController.text);
     final discount = double.tryParse(_discountController.text) ?? 0;
 
-    // 用户手改过实付金额就不再自动覆盖（否则改完金额再动一下单价，手填的就被抹了）
-    if (_totalPriceManuallyEdited) return;
+    // 升数 = 机显 ÷ 单价（保留 2 位，和油枪显示一致）
+    if (!_quantityManuallyEdited &&
+        unitPrice != null &&
+        unitPrice > 0 &&
+        gross != null &&
+        gross > 0) {
+      _fuelAmountController.text = (gross / unitPrice).toStringAsFixed(2);
+    }
 
-    if (fuelAmount != null && pricePerLiter != null) {
-      final gross = fuelAmount * pricePerLiter;
+    // 实付 = 机显 − 优惠
+    if (!_totalPriceManuallyEdited && gross != null) {
       final paid = gross - discount;
       _totalPriceController.text =
           (paid > 0 ? paid : 0).toStringAsFixed(2);
@@ -427,35 +450,6 @@ class _RecordDialogState extends ConsumerState<RecordDialog> {
               const SizedBox(height: 16),
 
               LabeledField(
-                label: _isElectricMode ? '充电量(kWh)' : '加油量(升)',
-                isRequired: true,
-                child: TextFormField(
-                  controller: _fuelAmountController,
-                  decoration: fieldDecoration(
-                    icon: _isElectricMode
-                        ? Icons.battery_charging_full
-                        : Icons.local_gas_station,
-                    hint: _isElectricMode ? '例如:45.0' : '例如:50.5',
-                  ),
-                  keyboardType:
-                      const TextInputType.numberWithOptions(decimal: true),
-                  onChanged: (_) => _calculatePrice(),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return _isElectricMode ? '请输入充电量' : '请输入加油量';
-                    }
-                    final parsed = double.tryParse(value);
-                    if (parsed == null || !parsed.isFinite) {
-                      return '请输入有效数字';
-                    }
-                    return null;
-                  },
-                ),
-              ),
-
-              const SizedBox(height: 16),
-
-              LabeledField(
                 label: _isElectricMode ? '电价(元/度)' : '单价(元/升)',
                 isRequired: true,
                 child: TextFormField(
@@ -470,6 +464,69 @@ class _RecordDialogState extends ConsumerState<RecordDialog> {
                   validator: (value) {
                     if (value == null || value.isEmpty) {
                       return _isElectricMode ? '请输入电价' : '请输入单价';
+                    }
+                    final parsed = double.tryParse(value);
+                    if (parsed == null || !parsed.isFinite) {
+                      return '请输入有效数字';
+                    }
+                    return null;
+                  },
+                ),
+              ),
+
+              const SizedBox(height: 16),
+
+              // 机显金额：油枪上那笔"应付"。填了它 + 单价，升数就能自动算准
+              LabeledField(
+                label: _isElectricMode ? '机显金额(元)' : '机显金额(元)',
+                isRequired: true,
+                helper: '油枪上显示的应付金额',
+                child: TextFormField(
+                  controller: _grossAmountController,
+                  decoration: fieldDecoration(
+                    icon: Icons.receipt_long,
+                    hint: _isElectricMode ? '例如:60.00' : '例如:801.00',
+                  ),
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
+                  onChanged: (_) => _calculatePrice(),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return '请输入机显金额';
+                    }
+                    final parsed = double.tryParse(value);
+                    if (parsed == null || !parsed.isFinite) {
+                      return '请输入有效数字';
+                    }
+                    if (parsed <= 0) return '机显金额要大于 0';
+                    return null;
+                  },
+                ),
+              ),
+
+              const SizedBox(height: 16),
+
+              LabeledField(
+                label: _isElectricMode ? '充电量(kWh)' : '加油量(升)',
+                isRequired: true,
+                helper: '机显金额 ÷ 单价，自动算出；和油枪对不上可以手改',
+                child: TextFormField(
+                  controller: _fuelAmountController,
+                  decoration: fieldDecoration(
+                    icon: _isElectricMode
+                        ? Icons.battery_charging_full
+                        : Icons.local_gas_station,
+                    hint: _isElectricMode ? '自动计算' : '自动计算',
+                  ),
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
+                  onChanged: (_) {
+                    // 手改过就标记，之后单价/机显再变也不覆盖它
+                    _quantityManuallyEdited = true;
+                  },
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return _isElectricMode ? '请输入充电量' : '请输入加油量';
                     }
                     final parsed = double.tryParse(value);
                     if (parsed == null || !parsed.isFinite) {
